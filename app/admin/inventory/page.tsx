@@ -1,0 +1,7 @@
+import { updateInventory } from "@/lib/admin/operations"
+import { createClient } from "@/lib/supabase/server"
+
+export default async function InventoryPage(){
+  const supabase=await createClient();const {data}=await supabase.from("inventory").select("*,products(name,sku)").order("updated_at",{ascending:false})
+  return <main className="p-5 lg:p-8"><h1 className="text-3xl font-bold">Inventory</h1><p className="mt-2 text-slate-500">Available, reserved, and low-stock thresholds.</p><div className="mt-7 space-y-3">{data?.map(item=><form action={updateInventory} key={item.product_id} className={`grid gap-3 rounded-2xl border bg-white p-4 md:grid-cols-[1fr_100px_100px_100px_auto] md:items-end ${item.quantity<=item.low_stock_threshold?"border-amber-300":""}`}><input type="hidden" name="productId" value={item.product_id}/><div><p className="font-semibold">{item.products?.name??"Product"}</p><p className="text-xs text-slate-500">{item.products?.sku}</p></div>{[["quantity","Available",item.quantity],["reserved","Reserved",item.reserved],["threshold","Low stock at",item.low_stock_threshold]].map(([name,label,value])=><label className="text-xs font-medium" key={String(name)}>{label}<input name={String(name)} type="number" min="0" defaultValue={Number(value)} className="mt-1 h-10 w-full rounded-lg border px-2 text-sm"/></label>)}<button className="h-10 rounded-lg bg-slate-900 px-4 text-sm text-white">Update</button></form>)}</div></main>
+}
