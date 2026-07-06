@@ -9,19 +9,6 @@ type ReviewEligibilityReason =
   | "pending"
   | "already-reviewed"
 
-type ReviewRow = {
-  id: string
-  product_id: string
-  rating: number
-  title: string
-  body: string
-  created_at: string
-  verified_purchase: boolean
-  profiles:
-    | { first_name: string | null; last_name: string | null }
-    | Array<{ first_name: string | null; last_name: string | null }>
-    | null
-}
 
 async function eligibility(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -79,12 +66,22 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  let query = supabase.from("product_reviews").select("id,product_id,rating,title,body,created_at,verified_purchase,profiles(first_name,last_name)").eq("status", "approved").order("created_at", { ascending: false })
+  let query = supabase.from("product_reviews").select("id,product_id,user_id,rating,title,body,created_at,verified_purchase").eq("status", "approved").order("created_at", { ascending: false })
   if (productId) query = query.eq("product_id", productId)
   const { data, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  const reviews = ((data ?? []) as unknown as ReviewRow[]).map((row) => {
-    const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles
+
+  // Look up profile names for review authors
+  const rows = data ?? []
+  const userIds = [...new Set(rows.map((r: any) => r.user_id).filter(Boolean))]
+  let profileMap: Record<string, { first_name: string | null; last_name: string | null }> = {}
+  if (userIds.length > 0) {
+    const { data: profiles } = await supabase.from("profiles").select("id,first_name,last_name").in("id", userIds)
+    if (profiles) profileMap = Object.fromEntries(profiles.map((p: any) => [p.id, p]))
+  }
+
+  const reviews = rows.map((row: any) => {
+    const profile = profileMap[row.user_id]
     return {
       id: row.id,
       productId: row.product_id,
