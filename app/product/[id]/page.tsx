@@ -55,7 +55,7 @@ export default function ProductDetailPage() {
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
 
-  const productReviews = product?.reviewsList ?? [];
+  const productReviews = product?.product_reviews ?? [];
 
   if (loading || !product) {
     return (
