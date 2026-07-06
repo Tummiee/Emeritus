@@ -40,7 +40,15 @@ export default async function OrdersPage() {
 
               {order.order_items && order.order_items.length > 0 && (
                 <div className="mt-4 space-y-4 border-t border-border pt-4">
-                  {order.order_items.map((item) =>
+                  {order.order_items.map((item: {
+                    quantity: number
+                    products: {
+                      id: string
+                      name: string
+                      slug: string
+                      image_url: string | null
+                    } | null
+                  }) =>
                     item.products ? (
                       <div key={item.products.id} className="flex items-center justify-between gap-4">
                         <div className="flex min-w-0 items-center gap-4">
