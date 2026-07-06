@@ -55,7 +55,11 @@ export default function ProductDetailPage() {
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
 
-  const productReviews = product?.product_reviews ?? [];
+  const productReviews: any[] = product?.reviewsList ?? [];
+  const reviewCount = productReviews.length;
+  const averageRating = reviewCount
+    ? productReviews.reduce((sum: number, r: any) => sum + r.rating, 0) / reviewCount
+    : 0;
 
   if (loading || !product) {
     return (
@@ -162,12 +166,12 @@ export default function ProductDetailPage() {
                   {Array.from({ length: 5 }).map((_, i) => (
                     <Star
                       key={i}
-                      className={`h-5 w-5 ${i < Math.floor(product.rating) ? "fill-yellow-400 text-yellow-400" : "text-slate-300"}`}
+                      className={`h-5 w-5 ${i < Math.floor(averageRating) ? "fill-yellow-400 text-yellow-400" : "text-slate-300"}`}
                     />
                   ))}
                 </div>
                 <span className="text-sm text-slate-600">
-                  {product.rating} ({product.reviews} reviews)
+                  {averageRating.toFixed(1)} ({reviewCount} {reviewCount === 1 ? "review" : "reviews"})
                 </span>
               </div>
 
@@ -273,15 +277,44 @@ export default function ProductDetailPage() {
           </div>
 
           <motion.div
+            id="reviews"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
             viewport={{ once: true }}
-            className="rounded-[2rem] border border-purple-100 bg-white/80 p-8 shadow-[0_30px_80px_-40px_rgba(92,63,187,0.2)] backdrop-blur"
+            className="scroll-mt-24 rounded-[2rem] border border-purple-100 bg-white/80 p-8 shadow-[0_30px_80px_-40px_rgba(92,63,187,0.2)] backdrop-blur"
           >
-            <h2 className="text-2xl font-semibold text-slate-950">
-              Customer reviews
-            </h2>
+            {/* ── Review summary header ─────────────────────── */}
+            <div className="flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <h2 className="text-2xl font-semibold text-slate-950">
+                  Customer reviews
+                </h2>
+                {reviewCount > 0 && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <div className="flex items-center gap-0.5">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <Star
+                          key={i}
+                          className={`h-4 w-4 ${
+                            i < Math.round(averageRating)
+                              ? "fill-yellow-400 text-yellow-400"
+                              : "text-slate-300"
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-sm font-medium text-slate-700">
+                      {averageRating.toFixed(1)} out of 5
+                    </span>
+                    <span className="text-sm text-slate-500">
+                      · {reviewCount} {reviewCount === 1 ? "review" : "reviews"}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+
             <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1.2fr)_minmax(320px,.8fr)]">
               <div>
                 {productReviews.length > 0 ? (
