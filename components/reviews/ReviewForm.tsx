@@ -1,9 +1,18 @@
 "use client"
 
 import Link from "next/link"
-import { useState, type FormEvent } from "react"
-import { Star } from "lucide-react"
+import { useEffect, useState, type FormEvent } from "react"
+import { LockKeyhole, Star } from "lucide-react"
 import { useToast } from "@/components/ui/toast"
+
+type Eligibility =
+  | "loading"
+  | "eligible"
+  | "sign-in"
+  | "not-purchased"
+  | "pending"
+  | "already-reviewed"
+  | "error"
 
 export function ReviewForm({ productId, returnPath }: { productId: string; returnPath: string }) {
   const { showToast } = useToast()
@@ -13,6 +22,25 @@ export function ReviewForm({ productId, returnPath }: { productId: string; retur
   const [message, setMessage] = useState("")
   const [needsLogin, setNeedsLogin] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [eligibility, setEligibility] = useState<Eligibility>("loading")
+
+  useEffect(() => {
+    const controller = new AbortController()
+    void fetch(
+      `/api/reviews?productId=${encodeURIComponent(productId)}&eligibility=true`,
+      { cache: "no-store", signal: controller.signal },
+    )
+      .then(async (response) => {
+        const result = await response.json()
+        if (!response.ok) throw new Error(result.error)
+        setEligibility(result.data.canReview ? "eligible" : result.data.reason)
+      })
+      .catch((error) => {
+        if (error instanceof DOMException && error.name === "AbortError") return
+        setEligibility("error")
+      })
+    return () => controller.abort()
+  }, [productId])
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -62,6 +90,63 @@ export function ReviewForm({ productId, returnPath }: { productId: string; retur
       <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-900">
         <h3 className="font-semibold">Review received</h3>
         <p className="mt-1 text-sm">{message} It will appear after an administrator approves it.</p>
+      </div>
+    )
+  }
+
+  if (eligibility === "loading") {
+    return (
+      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5" role="status">
+        <div className="h-5 w-36 animate-pulse rounded bg-slate-200" />
+        <div className="mt-3 h-4 w-full animate-pulse rounded bg-slate-200" />
+      </div>
+    )
+  }
+
+  if (eligibility !== "eligible") {
+    const content = {
+      "sign-in": {
+        title: "Sign in to review",
+        message: "Only customers who purchased and received this product can write a review.",
+      },
+      "not-purchased": {
+        title: "Verified customers only",
+        message: "You can review this product after an order containing it has been delivered.",
+      },
+      pending: {
+        title: "Review awaiting approval",
+        message: "You already submitted a review for this product. It is currently being moderated.",
+      },
+      "already-reviewed": {
+        title: "Product already reviewed",
+        message: "You have already reviewed this product.",
+      },
+      error: {
+        title: "Reviews temporarily unavailable",
+        message: "Your review eligibility could not be checked right now. Please try again later.",
+      },
+    }[eligibility]
+
+    return (
+      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+        <span className="grid size-10 place-items-center rounded-full bg-slate-200 text-slate-600">
+          <LockKeyhole className="size-5" />
+        </span>
+        <h3 className="mt-4 font-semibold text-slate-950">{content.title}</h3>
+        <p className="mt-1 text-sm leading-6 text-slate-600">{content.message}</p>
+        {eligibility === "sign-in" && (
+          <Link
+            href={`/auth/login?next=${encodeURIComponent(returnPath)}`}
+            className="mt-4 inline-flex rounded-xl bg-purple-700 px-4 py-2 text-sm font-semibold text-white"
+          >
+            Sign in
+          </Link>
+        )}
+        {eligibility === "not-purchased" && (
+          <Link href="/account/orders" className="mt-4 inline-block text-sm font-semibold text-purple-700">
+            View your orders
+          </Link>
+        )}
       </div>
     )
   }
