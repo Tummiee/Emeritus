@@ -16,18 +16,18 @@ function display(value: unknown) {
   return String(value)
 }
 
-function FieldInput({ field, value, options }: { field: Field; value: unknown; options: OptionMap }) {
-  const base = "mt-1.5 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
-  if (field.type === "image") return <AdminImageField name={field.name} initialUrl={String(value ?? "")} required={field.required} />
-  if (field.type === "boolean") return <label className="mt-3 flex items-center gap-2 text-sm text-slate-600"><input name={field.name} type="checkbox" defaultChecked={value === undefined ? true : Boolean(value)} className="size-4 accent-primary" /> Enabled</label>
-  if (field.type === "textarea" || field.type === "json") return <textarea name={field.name} required={field.required} rows={field.type === "json" ? 8 : 4} defaultValue={field.type === "json" ? JSON.stringify(value ?? {}, null, 2) : String(value ?? "")} className={`${base} h-auto py-3 font-${field.type === "json" ? "mono" : "sans"}`} />
+function FieldInput({ field, value, options, disabled }: { field: Field; value: unknown; options: OptionMap; disabled?: boolean }) {
+  const base = "mt-1.5 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed"
+  if (field.type === "image") return <AdminImageField name={field.name} initialUrl={String(value ?? "")} required={field.required && !disabled} />
+  if (field.type === "boolean") return <label className="mt-3 flex items-center gap-2 text-sm text-slate-600"><input name={field.name} type="checkbox" defaultChecked={value === undefined ? true : Boolean(value)} disabled={disabled} className="size-4 accent-primary" /> Enabled</label>
+  if (field.type === "textarea" || field.type === "json") return <textarea name={field.name} required={field.required && !disabled} disabled={disabled} rows={field.type === "json" ? 8 : 4} defaultValue={field.type === "json" ? JSON.stringify(value ?? {}, null, 2) : String(value ?? "")} className={`${base} h-auto py-3 font-${field.type === "json" ? "mono" : "sans"}`} />
   if (field.type === "select") {
     const items = field.options ?? (field.optionSource ? options[field.optionSource] : []) ?? []
-    return <select name={field.name} required={field.required} defaultValue={String(value ?? "")} className={base}><option value="">Select…</option>{items.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select>
+    return <select name={field.name} required={field.required && !disabled} disabled={disabled} defaultValue={String(value ?? "")} className={base}><option value="">Select…</option>{items.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select>
   }
   const type = field.type === "number" ? "number" : field.type === "date" ? "date" : field.type === "datetime" ? "datetime-local" : "text"
   const normalized = field.type === "datetime" && value ? String(value).slice(0, 16) : String(value ?? "")
-  return <input name={field.name} type={type} step={field.type === "number" ? "0.01" : undefined} required={field.required} defaultValue={normalized} className={base} />
+  return <input name={field.name} type={type} step={field.type === "number" ? "0.01" : undefined} required={field.required && !disabled} disabled={disabled} defaultValue={normalized} className={base} />
 }
 
 export async function EntityManager({ entity, searchParams }: { entity: EntityName; searchParams: Promise<{ edit?: string; new?: string; saved?: string; error?: string; bulk?: string; count?: string; moderated?: string }> }) {
@@ -57,7 +57,29 @@ export async function EntityManager({ entity, searchParams }: { entity: EntityNa
     {params.error && <p className="mt-5 rounded-xl bg-red-50 p-3 text-sm text-red-800">Could not save: {decodeURIComponent(params.error)}</p>}
     {params.bulk && <p className="mt-5 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">{Number(params.count ?? 0)} products {params.bulk === "deleted" ? "permanently deleted" : "deactivated"}.</p>}
     {params.moderated && <p className="mt-5 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">Review {params.moderated}.</p>}
-    {showForm && <form action={saveEntity} encType="multipart/form-data" className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><input type="hidden" name="entity" value={entity} /><input type="hidden" name="id" value={editing?.id ?? ""} /><div className="mb-5 flex items-center justify-between"><h2 className="text-lg font-semibold">{editing ? `Edit ${config.singular}` : `New ${config.singular}`}</h2><Link href={`/admin/${entity}`} className="text-sm text-slate-500">Cancel</Link></div><div className="grid gap-4 md:grid-cols-2">{config.fields.map((field) => <label key={field.name} className={field.type === "textarea" || field.type === "json" || field.type === "image" ? "md:col-span-2 text-sm font-medium" : "text-sm font-medium"}>{field.label}{field.required && <span className="text-red-500"> *</span>}<FieldInput field={field} value={editing?.[field.name]} options={options} /></label>)}</div><button className="mt-5 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white">Save changes</button></form>}
+    {showForm && (
+      <form action={saveEntity} encType="multipart/form-data" className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <input type="hidden" name="entity" value={entity} />
+        <input type="hidden" name="id" value={editing?.id ?? ""} />
+        <div className="mb-5 flex items-center justify-between">
+          <h2 className="text-lg font-semibold">{editing ? `Edit ${config.singular}` : `New ${config.singular}`}</h2>
+          <Link href={`/admin/${entity}`} className="text-sm text-slate-500">Cancel</Link>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          {config.fields.map((field) => {
+            const isFieldDisabled = Boolean(editing && field.readOnlyWhenEditing)
+            return (
+              <label key={field.name} className={field.type === "textarea" || field.type === "json" || field.type === "image" ? "md:col-span-2 text-sm font-medium" : "text-sm font-medium"}>
+                {field.label}
+                {field.required && !isFieldDisabled && <span className="text-red-500"> *</span>}
+                <FieldInput field={field} value={editing?.[field.name]} options={options} disabled={isFieldDisabled} />
+              </label>
+            )
+          })}
+        </div>
+        <button className="mt-5 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white">Save changes</button>
+      </form>
+    )}
     <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead className="border-b bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr>{config.list.map((column) => <th className="px-5 py-3" key={column}>{column.replaceAll("_", " ")}</th>)}<th className="px-5 py-3 text-right">Actions</th></tr></thead><tbody>{rows?.map((row) => <tr key={row.id} className="border-b border-slate-100 last:border-0">{config.list.map((column) => <td className="max-w-72 truncate px-5 py-4" key={column}>{display(row[column])}</td>)}<td className="px-5 py-4"><div className="flex justify-end gap-2">{entity === "reviews" && <ReviewModerationActions id={String(row.id)} status={String(row.status)} />}<Link href={`/admin/${entity}?edit=${row.id}`} aria-label="Edit" className="rounded-lg border p-2 hover:bg-slate-50"><Pencil className="size-4" /></Link><form action={deleteEntity}><input type="hidden" name="entity" value={entity} /><input type="hidden" name="id" value={row.id} /><button aria-label="Delete" className="rounded-lg border border-red-100 p-2 text-red-600 hover:bg-red-50"><Trash2 className="size-4" /></button></form></div></td></tr>)}</tbody></table></div>{!rows?.length && <p className="p-12 text-center text-sm text-slate-500">No records yet. Add the first {config.singular}.</p>}</div>
   </main>
 }

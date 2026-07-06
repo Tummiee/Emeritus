@@ -5,6 +5,7 @@ export type Field = {
   required?: boolean
   optionSource?: "categories" | "brands" | "products"
   options?: Array<{ label: string; value: string }>
+  readOnlyWhenEditing?: boolean
 }
 
 export type EntityConfig = {
@@ -43,7 +44,10 @@ export const entities = {
     { name: "starts_at", label: "Starts at", type: "datetime" }, { name: "expires_at", label: "Expires at", type: "datetime" }, { name: "active", label: "Active", type: "boolean" },
   ]},
   reviews: { table: "product_reviews", title: "Reviews", description: "Moderate ratings and respond to customer feedback.", singular: "review", list: ["rating", "title", "status", "created_at"], fields: [
-    { name: "product_id", label: "Product", type: "select", optionSource: "products", required: true }, { name: "rating", label: "Rating", type: "number", required: true }, { name: "title", label: "Title" }, { name: "body", label: "Review", type: "textarea", required: true },
+    { name: "product_id", label: "Product", type: "select", optionSource: "products", required: true, readOnlyWhenEditing: true },
+    { name: "rating", label: "Rating", type: "number", required: true, readOnlyWhenEditing: true },
+    { name: "title", label: "Title", readOnlyWhenEditing: true },
+    { name: "body", label: "Review", type: "textarea", required: true, readOnlyWhenEditing: true },
     { name: "status", label: "Status", type: "select", options: [{ label: "Pending", value: "pending" }, { label: "Approved", value: "approved" }, { label: "Rejected", value: "rejected" }] }, { name: "admin_response", label: "Admin response", type: "textarea" },
   ]},
 } satisfies Record<string, EntityConfig>

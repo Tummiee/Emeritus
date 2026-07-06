@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
-import { entities, type EntityName } from "@/lib/admin/entities"
+import { entities, type EntityConfig, type EntityName } from "@/lib/admin/entities"
 import { optimizeAdminImage } from "@/lib/admin/image-optimization"
 import { validateAdminImage } from "@/lib/admin/image-upload"
 import { requireAdmin } from "@/lib/auth/session"
@@ -11,7 +11,7 @@ import { createClient } from "@/lib/supabase/server"
 function entity(value: FormDataEntryValue | null) {
   const name = String(value) as EntityName
   if (!(name in entities)) throw new Error("Unsupported admin entity")
-  return { name, config: entities[name] }
+  return { name, config: entities[name] as EntityConfig }
 }
 
 export async function saveEntity(formData: FormData) {
@@ -22,6 +22,9 @@ export async function saveEntity(formData: FormData) {
   const imageFiles = new Map<string, File>()
 
   for (const field of config.fields) {
+    if (id && field.readOnlyWhenEditing) {
+      continue
+    }
     const raw = formData.get(field.name)
     if (field.type === "image") {
       const file = formData.get(`${field.name}__file`)
@@ -38,7 +41,10 @@ export async function saveEntity(formData: FormData) {
     } else values[field.name] = raw === null || raw === "" ? null : String(raw).trim()
   }
   const missing = config.fields.some(
-    (field) => field.required && (values[field.name] === null || values[field.name] === "") && !imageFiles.has(field.name),
+    (field) => {
+      if (id && field.readOnlyWhenEditing) return false
+      return field.required && (values[field.name] === null || values[field.name] === "") && !imageFiles.has(field.name)
+    }
   )
   if (missing) redirect(`/admin/${name}?error=required`)
 
