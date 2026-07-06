@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { Bell, Heart, MapPin, Package, Wrench } from "lucide-react"
+
 import { requireUser } from "@/lib/auth/session"
 import { createClient } from "@/lib/supabase/server"
 
@@ -20,5 +21,30 @@ export default async function AccountPage() {
     ["/account/repairs", "Repairs", repairs.count ?? 0, Wrench],
     ["/account/notifications", "Unread", notifications.count ?? 0, Bell],
   ] as const
-  return <div><h1 className="text-3xl font-bold tracking-tight">Your account</h1><p className="mt-2 text-muted-foreground">Manage purchases, saved products, delivery details, and support.</p><div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{cards.map(([href, label, count, Icon]) => <Link href={href} key={href} className="rounded-2xl border border-border bg-card p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"><div className="flex items-center justify-between"><Icon className="size-5 text-primary" /><span className="text-2xl font-bold">{count}</span></div><p className="mt-5 font-medium">{label}</p></Link>)}</div></div>
+
+  return (
+    <div className="min-w-0">
+      <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Your account</h1>
+      <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
+        Manage purchases, saved products, delivery details, and support.
+      </p>
+      <div className="mt-6 grid grid-cols-1 gap-3 min-[440px]:grid-cols-2 sm:mt-8 sm:gap-4 xl:grid-cols-3">
+        {cards.map(([href, label, count, Icon]) => (
+          <Link
+            href={href}
+            key={href}
+            className="min-w-0 rounded-2xl border border-border bg-card p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:p-5"
+          >
+            <div className="flex items-center justify-between gap-4">
+              <span className="grid size-10 place-items-center rounded-xl bg-primary/10 text-primary">
+                <Icon className="size-5" />
+              </span>
+              <span className="text-2xl font-bold">{count}</span>
+            </div>
+            <p className="mt-4 font-medium sm:mt-5">{label}</p>
+          </Link>
+        ))}
+      </div>
+    </div>
+  )
 }

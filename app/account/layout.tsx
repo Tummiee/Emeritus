@@ -19,13 +19,20 @@ export default async function AccountLayout({ children }: { children: React.Reac
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <Header />
-      <main className="mx-auto grid w-full max-w-7xl flex-1 gap-6 px-4 py-8 lg:grid-cols-[230px_1fr] lg:px-8">
-        <aside className="space-y-5">
-          <div className="px-2"><p className="text-sm font-semibold">{name}</p><p className="truncate text-xs text-muted-foreground">{user.email}</p></div>
+      <main className="mx-auto grid w-full min-w-0 max-w-7xl flex-1 gap-6 px-4 py-6 sm:px-6 sm:py-8 lg:grid-cols-[230px_minmax(0,1fr)] lg:px-8">
+        <aside className="min-w-0 space-y-3 lg:space-y-5">
+          <div className="flex min-w-0 items-start justify-between gap-4 rounded-2xl border border-border bg-card p-4 lg:block lg:border-0 lg:bg-transparent lg:px-2 lg:py-0">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold">{name}</p>
+              <p className="truncate text-xs text-muted-foreground">{user.email}</p>
+            </div>
+            <div className="shrink-0 lg:mt-4">
+              <SignOutButton />
+            </div>
+          </div>
           <AccountNav />
-          <SignOutButton />
         </aside>
-        <section className="min-w-0">{children}</section>
+        <section className="w-full min-w-0">{children}</section>
       </main>
       <Footer />
     </div>

@@ -20,18 +20,18 @@ export default async function NotificationsPage() {
 
   return (
     <div>
-      <div className="flex items-end justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Notifications</h1>
+      <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold sm:text-3xl">Notifications</h1>
           <p className="mt-2 text-muted-foreground">Account and order updates.</p>
         </div>
         {hasUnread && (
           <form action={markAllNotificationsRead} data-navigation-feedback="page">
-            <button className="text-sm font-medium text-primary">Mark all read</button>
+            <button className="rounded-lg bg-primary/10 px-3 py-2 text-sm font-medium text-primary">Mark all read</button>
           </form>
         )}
       </div>
-      <div className="mt-8 space-y-2">
+      <div className="mt-6 space-y-2 sm:mt-8">
         {!data?.length && (
           <div className="rounded-2xl border border-dashed p-12 text-center">
             <Bell className="mx-auto size-10 text-muted-foreground" />
