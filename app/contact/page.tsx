@@ -46,7 +46,7 @@ export default function ContactPage() {
     {
       icon: Mail,
       title: 'Email',
-      content: 'support@emeritusgadget.com',
+      content: 'support@emeritusgadgets.com',
       subtext: 'We respond within 24 hours',
     },
     {

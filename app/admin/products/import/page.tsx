@@ -175,23 +175,31 @@ export default function ProductImportPage() {
           </div>
           <div className="mt-4 overflow-hidden border border-slate-200 bg-white">
             <div className="max-h-[560px] overflow-auto">
-              <table className="w-full min-w-[900px] text-left text-sm">
-                <thead className="sticky top-0 bg-slate-50 text-xs uppercase text-slate-500">
-                  <tr><th className="p-3">Row</th><th className="p-3">SKU</th><th className="p-3">Product</th><th className="p-3">Category</th><th className="p-3">Brand</th><th className="p-3">Action</th><th className="p-3">Validation</th></tr>
+              <table className="w-full min-w-[900px] text-left text-sm border-collapse">
+                <thead className="sticky top-0 bg-slate-50 text-xs uppercase tracking-wide text-slate-500 border-b">
+                  <tr>
+                    <th className="px-6 py-4 font-semibold">Row</th>
+                    <th className="px-6 py-4 font-semibold">SKU</th>
+                    <th className="px-6 py-4 font-semibold">Product</th>
+                    <th className="px-6 py-4 font-semibold">Category</th>
+                    <th className="px-6 py-4 font-semibold">Brand</th>
+                    <th className="px-6 py-4 font-semibold">Action</th>
+                    <th className="px-6 py-4 font-semibold">Validation</th>
+                  </tr>
                 </thead>
                 <tbody>
                   {rows.map((row) => (
-                    <tr key={row.rowNumber} className="border-t align-top">
-                      <td className="p-3 text-slate-500">{row.rowNumber}</td>
-                      <td className="p-3 font-mono text-xs">{row.source.sku}</td>
-                      <td className="p-3 font-medium">{row.source.name}</td>
-                      <td className="p-3">{row.source.category || "None"}</td>
-                      <td className="p-3">{row.source.brand || "None"}</td>
-                      <td className="p-3 capitalize">{row.action}</td>
-                      <td className="max-w-md p-3">
-                        {row.errors.map((message) => <p key={message} className="text-xs text-red-700">{message}</p>)}
-                        {row.warnings.map((message) => <p key={message} className="text-xs text-amber-700">{message}</p>)}
-                        {!row.errors.length && !row.warnings.length && <span className="text-xs text-emerald-700">Ready</span>}
+                    <tr key={row.rowNumber} className="border-b border-slate-100 align-top last:border-0 hover:bg-slate-50/50 transition">
+                      <td className="px-6 py-5 text-slate-500">{row.rowNumber}</td>
+                      <td className="px-6 py-5 font-mono text-xs whitespace-nowrap">{row.source.sku}</td>
+                      <td className="px-6 py-5 font-medium text-slate-900">{row.source.name}</td>
+                      <td className="px-6 py-5 text-slate-600">{row.source.category || "None"}</td>
+                      <td className="px-6 py-5 text-slate-600">{row.source.brand || "None"}</td>
+                      <td className="px-6 py-5 capitalize text-slate-600">{row.action}</td>
+                      <td className="max-w-md px-6 py-5">
+                        {row.errors.map((message) => <p key={message} className="text-xs text-red-700 font-medium leading-relaxed">{message}</p>)}
+                        {row.warnings.map((message) => <p key={message} className="text-xs text-amber-700 font-medium leading-relaxed">{message}</p>)}
+                        {!row.errors.length && !row.warnings.length && <span className="text-xs text-emerald-700 font-semibold bg-emerald-50 px-2 py-1 rounded-md">Ready</span>}
                       </td>
                     </tr>
                   ))}

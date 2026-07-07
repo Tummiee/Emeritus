@@ -5,6 +5,7 @@ A full-stack Next.js 16 ecommerce platform for selling premium gadgets and techn
 ## 🎯 Features
 
 ### Customer Features
+
 - **Product Catalog** - Browse products with filtering, sorting, and search functionality
 - **Shopping Cart** - Add/remove products, manage quantities
 - **Wishlist** - Save products for later
@@ -15,6 +16,7 @@ A full-stack Next.js 16 ecommerce platform for selling premium gadgets and techn
 - **Coupon System** - Apply discount codes at checkout
 
 ### Admin Features
+
 - **Dashboard** - Overview of sales, orders, and business metrics
 - **Product Management** - Add, edit, delete products with bulk operations
 - **Order Management** - View, process, and manage customer orders
@@ -23,6 +25,7 @@ A full-stack Next.js 16 ecommerce platform for selling premium gadgets and techn
 - **Settings** - Configure store, notifications, and preferences
 
 ### Payment Integration
+
 - **Paystack Integration** - Secure payment processing via Paystack
 - **Payment Verification** - Webhook verification for payment confirmation
 - **Order Creation** - Automatic order creation after successful payment
@@ -42,16 +45,19 @@ A full-stack Next.js 16 ecommerce platform for selling premium gadgets and techn
 ### Installation
 
 1. **Install dependencies**
+
    ```bash
    pnpm install
    ```
 
 2. **Set up environment variables**
+
    ```bash
    cp .env.example .env.local
    ```
 
    Add your environment variables:
+
    ```env
    NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_your_key
@@ -70,6 +76,7 @@ A full-stack Next.js 16 ecommerce platform for selling premium gadgets and techn
    `202607030001_paystack_hardening.sql`.
 
 4. **Run the development server**
+
    ```bash
    pnpm dev
    ```
@@ -110,6 +117,7 @@ A full-stack Next.js 16 ecommerce platform for selling premium gadgets and techn
 ## 🎨 Design System
 
 The application uses a premium tech-focused design system with:
+
 - **Primary Color**: #1e40af (Blue)
 - **Accent Color**: #3b82f6 (Light Blue)
 - **Neutrals**: Slate color palette
@@ -119,6 +127,7 @@ The application uses a premium tech-focused design system with:
 ## 📱 Pages
 
 ### Customer Pages
+
 - `/` - Homepage with featured products
 - `/shop` - Product catalog with filters
 - `/product/[id]` - Product detail page
@@ -134,6 +143,7 @@ The application uses a premium tech-focused design system with:
 - `/privacy` - Privacy policy
 
 ### Admin Pages
+
 - `/admin` - Dashboard
 - `/admin/products` - Product management
 - `/admin/orders` - Order management
@@ -144,26 +154,31 @@ The application uses a premium tech-focused design system with:
 ## 🔌 API Endpoints
 
 ### Authentication
+
 - `POST /api/auth/login` - User login
 - `POST /api/auth/register` - User registration
 
 ### Products
+
 - `GET /api/products` - Get all products
 - `GET /api/products/[id]` - Get product details
 - `GET /api/categories` - Get product categories
 - `GET /api/search` - Search products
 
 ### Orders
+
 - `GET /api/orders` - Get user orders
 - `POST /api/orders` - Create new order
 - `GET /api/orders/[id]` - Get order details
 
 ### Payments
+
 - `POST /api/payments/initialize` - Initialize Paystack payment
 - `POST /api/payments/verify` - Verify payment
 - `POST /api/payments/webhook` - Paystack webhook handler
 
 ### Other
+
 - `GET /api/coupons` - Validate coupon codes
 - `GET /api/tracking` - Get order tracking info
 - `GET /api/reviews` - Get product reviews
@@ -214,12 +229,16 @@ Contributions are welcome! Please follow the existing code style and component p
 
 ## 📞 Support
 
-For questions or support, contact support@emeritusgadget.com
+For questions or support, contact support@emeritusgadgets.com
 
 ## 📄 License
 
 This project is part of the Emeritus Gadget platform. All rights reserved.
+
 # emeritus-gadget
+
 # Emeritus_store
+
 # Emeritus_store
+
 # Emeritus

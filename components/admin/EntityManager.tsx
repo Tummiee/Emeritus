@@ -82,15 +82,15 @@ export async function EntityManager({ entity, searchParams }: { entity: EntityNa
     )}
     <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <div className="overflow-x-auto">
-        <table className="w-full text-left text-sm">
+        <table className="w-full text-left text-sm border-collapse">
           <thead className="border-b bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
             <tr>
               {config.list.map((column) => (
-                <th className="px-5 py-3" key={column}>
+                <th className="px-6 py-4 font-semibold" key={column}>
                   {column === "image_url" || column === "logo_url" ? "image" : column.replaceAll("_", " ")}
                 </th>
               ))}
-              <th className="px-5 py-3 text-right">Actions</th>
+              <th className="px-6 py-4 font-semibold text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -101,7 +101,7 @@ export async function EntityManager({ entity, searchParams }: { entity: EntityNa
                   if (isImageColumn) {
                     const src = row[column]
                     return (
-                      <td className="px-5 py-3" key={column}>
+                      <td className="px-6 py-5 align-top" key={column}>
                         {src ? (
                           <img 
                             src={String(src)} 
@@ -115,12 +115,12 @@ export async function EntityManager({ entity, searchParams }: { entity: EntityNa
                     )
                   }
                   return (
-                    <td className="max-w-72 truncate px-5 py-4" key={column}>
+                    <td className="max-w-72 truncate px-6 py-5 align-top" key={column}>
                       {display(row[column])}
                     </td>
                   )
                 })}
-                <td className="px-5 py-4">
+                <td className="px-6 py-5 align-top">
                   <div className="flex justify-end gap-2">
                     {entity === "reviews" && <ReviewModerationActions id={String(row.id)} status={String(row.status)} />}
                     <Link href={`/admin/${entity}?edit=${row.id}`} aria-label="Edit" className="rounded-lg border p-2 hover:bg-slate-50">

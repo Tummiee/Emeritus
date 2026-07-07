@@ -139,21 +139,43 @@ export default async function OffersPage({
 
       <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+          <table className="w-full text-left text-sm border-collapse">
             <thead className="border-b bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-              <tr><th className="px-5 py-3">Name</th><th className="px-5 py-3">Window</th><th className="px-5 py-3">Products</th><th className="px-5 py-3">Status</th><th className="px-5 py-3 text-right">Actions</th></tr>
+              <tr>
+                <th className="px-6 py-4 font-semibold">Name</th>
+                <th className="px-6 py-4 font-semibold">Window</th>
+                <th className="px-6 py-4 font-semibold">Products</th>
+                <th className="px-6 py-4 font-semibold">Status</th>
+                <th className="px-6 py-4 font-semibold text-right">Actions</th>
+              </tr>
             </thead>
             <tbody>
               {offers?.map((offer) => (
                 <tr key={offer.id} className="border-b border-slate-100 last:border-0">
-                  <td className="px-5 py-4"><strong>{offer.name}</strong><p className="text-xs capitalize text-slate-500">{String(offer.promotion_type).replaceAll("_", " ")}</p></td>
-                  <td className="px-5 py-4 text-xs text-slate-500">{offer.starts_at ? new Date(offer.starts_at).toLocaleString() : "Immediately"}<br />to {offer.ends_at ? new Date(offer.ends_at).toLocaleString() : "No expiry"}</td>
-                  <td className="px-5 py-4">{offer.promotion_products?.length ?? 0}</td>
-                  <td className="px-5 py-4">{offer.active ? "Published" : "Draft"}</td>
-                  <td className="px-5 py-4"><div className="flex justify-end gap-2">
-                    <Link href={`/admin/offers?edit=${offer.id}`} aria-label="Edit offer" className="rounded-lg border p-2 hover:bg-slate-50"><Pencil className="size-4" /></Link>
-                    <form action={deletePromotion}><input type="hidden" name="id" value={offer.id} /><button aria-label="Delete offer" className="rounded-lg border border-red-100 p-2 text-red-600 hover:bg-red-50"><Trash2 className="size-4" /></button></form>
-                  </div></td>
+                  <td className="px-6 py-5 align-top">
+                    <strong>{offer.name}</strong>
+                    <p className="text-xs capitalize text-slate-500">{String(offer.promotion_type).replaceAll("_", " ")}</p>
+                  </td>
+                  <td className="px-6 py-5 align-top text-xs text-slate-500 leading-normal">
+                    {offer.starts_at ? new Date(offer.starts_at).toLocaleString() : "Immediately"}
+                    <br />
+                    to {offer.ends_at ? new Date(offer.ends_at).toLocaleString() : "No expiry"}
+                  </td>
+                  <td className="px-6 py-5 align-top">{offer.promotion_products?.length ?? 0}</td>
+                  <td className="px-6 py-5 align-top">{offer.active ? "Published" : "Draft"}</td>
+                  <td className="px-6 py-5 align-top">
+                    <div className="flex justify-end gap-2">
+                      <Link href={`/admin/offers?edit=${offer.id}`} aria-label="Edit offer" className="rounded-lg border p-2 hover:bg-slate-50">
+                        <Pencil className="size-4" />
+                      </Link>
+                      <form action={deletePromotion}>
+                        <input type="hidden" name="id" value={offer.id} />
+                        <button aria-label="Delete offer" className="rounded-lg border border-red-100 p-2 text-red-600 hover:bg-red-50">
+                          <Trash2 className="size-4" />
+                        </button>
+                      </form>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
