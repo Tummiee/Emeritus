@@ -130,7 +130,7 @@ export default async function OrdersPage() {
                 )}
 
                  {/* ── Order details ─────────────────────────────────── */}
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-4 py-3">
                   <div className="min-w-0">
                     <p className="truncate font-semibold">{order.order_number}</p>
                     <p className="text-xs text-muted-foreground">
