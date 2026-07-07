@@ -187,9 +187,7 @@ export default function ProductDetailPage() {
               </div>
 
               <p className="mt-6 text-lg leading-8 text-slate-600">
-                Premium quality gadget with a refined finish, strong performance
-                and the kind of craftsmanship buyers expect from a specialist
-                retailer.
+                {product.description}
               </p>
 
               <div className="mt-6 flex items-center gap-2 text-sm font-medium text-emerald-600">
