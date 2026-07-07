@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { sendOrderEmailsIfPending } from "@/lib/sendEmail";
 
 const schema = z.object({ reference: z.string().trim().min(3).max(120) });
 
@@ -113,6 +114,9 @@ export async function POST(request: NextRequest) {
       { status: 500 },
     );
   }
+
+  // Send email notifications asynchronously
+  void sendOrderEmailsIfPending(attempt.order_id, admin);
 
   return NextResponse.json({
     success: true,

@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendOrderEmailsIfPending } from "@/lib/sendEmail";
 
 type PaystackEvent = {
   event?: string;
@@ -80,7 +81,7 @@ export async function POST(request: NextRequest) {
 
   const { data: attempt } = await admin
     .from("payment_attempts")
-    .select("amount,currency,status")
+    .select("order_id,amount,currency,status")
     .eq("reference", reference)
     .maybeSingle();
 
@@ -132,6 +133,11 @@ export async function POST(request: NextRequest) {
   });
   if (settlementError) {
     return NextResponse.json({ error: "Settlement failed" }, { status: 500 });
+  }
+
+  // Send email notifications asynchronously
+  if (attempt?.order_id) {
+    void sendOrderEmailsIfPending(attempt.order_id, admin);
   }
 
   await admin
