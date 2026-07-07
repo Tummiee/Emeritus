@@ -86,6 +86,10 @@ export async function POST(request: NextRequest) {
     .maybeSingle();
 
   if (!attempt || attempt.status === "successful") {
+    // Payment already settled (verify route or prior webhook) — still ensure emails sent
+    if (attempt?.order_id) {
+      await sendOrderEmailsIfPending(attempt.order_id, admin);
+    }
     await admin
       .from("payment_webhook_events")
       .update({ completed_at: new Date().toISOString() })
@@ -135,9 +139,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Settlement failed" }, { status: 500 });
   }
 
-  // Send email notifications asynchronously
+  // Send email notifications (awaited to ensure delivery before response ends)
   if (attempt?.order_id) {
-    void sendOrderEmailsIfPending(attempt.order_id, admin);
+    await sendOrderEmailsIfPending(attempt.order_id, admin);
   }
 
   await admin

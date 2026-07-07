@@ -190,7 +190,7 @@ export async function sendAdminNotification(order: any) {
 export async function sendOrderEmailsIfPending(orderId: string, adminClient: any) {
   const deterministicId = getDeterministicUUID(orderId);
 
-  // Try to insert tracking event to claim the email send block
+  // Try to insert tracking event to claim the email send lock
   const { error: insertError } = await adminClient
     .from("order_tracking_events")
     .insert({
@@ -204,15 +204,35 @@ export async function sendOrderEmailsIfPending(orderId: string, adminClient: any
   if (insertError) {
     if (insertError.code === "23505") {
       // Unique key violation: already sent by another process
-      console.log(`Emails already sent for order ${orderId} (claimed by other process)`);
+      console.log(`[Email] Already sent for order ${orderId} (deduplication hit)`);
       return;
     }
-    console.error(`Failed to claim email send for order ${orderId}:`, insertError);
+    console.error(`[Email] Failed to claim email lock for order ${orderId}:`, insertError.message);
     return;
   }
 
+  // Validate SMTP configuration before attempting to send
+  if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    console.error("[Email] SMTP not configured. Set SMTP_HOST, SMTP_USER, SMTP_PASS in .env.local");
+    return;
+  }
+
+  if (!process.env.ADMIN_ORDER_EMAIL) {
+    console.warn("[Email] ADMIN_ORDER_EMAIL not set, admin notification will be skipped");
+  }
+
   try {
-    // 1. Fetch order details with order_items
+    // 1. Verify SMTP connection
+    try {
+      await transporter.verify();
+      console.log("[Email] SMTP connection verified successfully");
+    } catch (smtpError) {
+      console.error("[Email] SMTP connection failed:", smtpError instanceof Error ? smtpError.message : smtpError);
+      console.error("[Email] Check SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS in your .env.local");
+      return;
+    }
+
+    // 2. Fetch order details with order_items
     const { data: order, error: orderError } = await adminClient
       .from("orders")
       .select("*, order_items(*)")
@@ -220,14 +240,14 @@ export async function sendOrderEmailsIfPending(orderId: string, adminClient: any
       .single();
 
     if (orderError || !order) {
-      console.error(`Failed to fetch order details for email:`, orderError);
+      console.error(`[Email] Failed to fetch order ${orderId}:`, orderError?.message);
       return;
     }
 
-    // 2. Fetch customer email from auth
+    // 3. Fetch customer email from auth
     const { data: { user }, error: userError } = await adminClient.auth.admin.getUserById(order.user_id);
-    if (userError || !user || !user.email) {
-      console.error(`Failed to fetch customer email for order ${orderId}:`, userError);
+    if (userError || !user?.email) {
+      console.error(`[Email] Failed to fetch user for order ${orderId}:`, userError?.message ?? "no email found");
       return;
     }
 
@@ -241,13 +261,27 @@ export async function sendOrderEmailsIfPending(orderId: string, adminClient: any
       customer_name: customerName,
     };
 
-    // 3. Send emails inside try/catch to improve reliability
-    await Promise.all([
+    console.log(`[Email] Sending emails for order ${order.order_number} to ${user.email}`);
+
+    // 4. Send emails — wrapped individually so one failure doesn't block the other
+    const results = await Promise.allSettled([
       sendCustomerConfirmation(orderData),
-      sendAdminNotification(orderData),
+      process.env.ADMIN_ORDER_EMAIL ? sendAdminNotification(orderData) : Promise.resolve(),
     ]);
-    console.log(`Emails successfully sent for order ${order.order_number}`);
+
+    for (const [i, result] of results.entries()) {
+      const label = i === 0 ? "customer" : "admin";
+      if (result.status === "rejected") {
+        console.error(`[Email] Failed to send ${label} email for order ${order.order_number}:`, result.reason);
+      }
+    }
+
+    const allOk = results.every((r) => r.status === "fulfilled");
+    if (allOk) {
+      console.log(`[Email] All emails sent successfully for order ${order.order_number}`);
+    }
   } catch (emailError) {
-    console.error(`Failed to send email for order ${orderId}:`, emailError);
+    console.error(`[Email] Unexpected error for order ${orderId}:`, emailError);
   }
 }
+

@@ -43,6 +43,9 @@ export async function POST(request: NextRequest) {
   }
 
   if (attempt.status === "successful") {
+    // Webhook settled first — still ensure emails are sent
+    const admin = createAdminClient();
+    await sendOrderEmailsIfPending(attempt.order_id, admin);
     return NextResponse.json({
       success: true,
       data: { status: "success", orderId: attempt.order_id },
@@ -115,8 +118,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Send email notifications asynchronously
-  void sendOrderEmailsIfPending(attempt.order_id, admin);
+  // Send email notifications (awaited to ensure delivery before response ends)
+  await sendOrderEmailsIfPending(attempt.order_id, admin);
 
   return NextResponse.json({
     success: true,
