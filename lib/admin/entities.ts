@@ -25,7 +25,7 @@ export const entities = {
   brands: { table: "brands", title: "Brands", description: "Manage manufacturers and storefront branding.", singular: "brand", list: ["name", "slug", "active", "display_order"], fields: [
     { name: "name", label: "Name", required: true }, { name: "slug", label: "Slug", required: true }, { name: "description", label: "Description", type: "textarea" }, { name: "logo_url", label: "Brand logo", type: "image" }, { name: "display_order", label: "Display order", type: "number" }, { name: "active", label: "Active", type: "boolean" },
   ]},
-  products: { table: "products", title: "Products", description: "Manage product content, pricing, merchandising, and SEO.", singular: "product", list: ["name", "sku", "price", "active"], fields: [
+  products: { table: "products", title: "Products", description: "Manage product content, pricing, merchandising, and SEO.", singular: "product", list: ["name", "image_url", "sku", "price", "active"], fields: [
     { name: "name", label: "Name", required: true }, { name: "slug", label: "Slug", required: true }, { name: "sku", label: "SKU", required: true }, { name: "description", label: "Description", type: "textarea" }, { name: "image_url", label: "Primary product image", type: "image" },
     { name: "category_id", label: "Category", type: "select", optionSource: "categories" }, { name: "brand_id", label: "Brand", type: "select", optionSource: "brands" },
     { name: "price", label: "Price", type: "number", required: true }, { name: "compare_at_price", label: "Compare-at price", type: "number" }, { name: "cost_price", label: "Cost price", type: "number" },

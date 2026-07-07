@@ -80,6 +80,67 @@ export async function EntityManager({ entity, searchParams }: { entity: EntityNa
         <button className="mt-5 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white">Save changes</button>
       </form>
     )}
-    <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead className="border-b bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr>{config.list.map((column) => <th className="px-5 py-3" key={column}>{column.replaceAll("_", " ")}</th>)}<th className="px-5 py-3 text-right">Actions</th></tr></thead><tbody>{rows?.map((row) => <tr key={row.id} className="border-b border-slate-100 last:border-0">{config.list.map((column) => <td className="max-w-72 truncate px-5 py-4" key={column}>{display(row[column])}</td>)}<td className="px-5 py-4"><div className="flex justify-end gap-2">{entity === "reviews" && <ReviewModerationActions id={String(row.id)} status={String(row.status)} />}<Link href={`/admin/${entity}?edit=${row.id}`} aria-label="Edit" className="rounded-lg border p-2 hover:bg-slate-50"><Pencil className="size-4" /></Link><form action={deleteEntity}><input type="hidden" name="entity" value={entity} /><input type="hidden" name="id" value={row.id} /><button aria-label="Delete" className="rounded-lg border border-red-100 p-2 text-red-600 hover:bg-red-50"><Trash2 className="size-4" /></button></form></div></td></tr>)}</tbody></table></div>{!rows?.length && <p className="p-12 text-center text-sm text-slate-500">No records yet. Add the first {config.singular}.</p>}</div>
+    <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-x-auto">
+        <table className="w-full text-left text-sm">
+          <thead className="border-b bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+            <tr>
+              {config.list.map((column) => (
+                <th className="px-5 py-3" key={column}>
+                  {column === "image_url" || column === "logo_url" ? "image" : column.replaceAll("_", " ")}
+                </th>
+              ))}
+              <th className="px-5 py-3 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows?.map((row) => (
+              <tr key={row.id} className="border-b border-slate-100 last:border-0">
+                {config.list.map((column) => {
+                  const isImageColumn = column === "image_url" || column === "logo_url"
+                  if (isImageColumn) {
+                    const src = row[column]
+                    return (
+                      <td className="px-5 py-3" key={column}>
+                        {src ? (
+                          <img 
+                            src={String(src)} 
+                            alt="" 
+                            className="size-8 rounded-lg object-cover border border-slate-200 bg-slate-50" 
+                          />
+                        ) : (
+                          <span className="text-slate-400">—</span>
+                        )}
+                      </td>
+                    )
+                  }
+                  return (
+                    <td className="max-w-72 truncate px-5 py-4" key={column}>
+                      {display(row[column])}
+                    </td>
+                  )
+                })}
+                <td className="px-5 py-4">
+                  <div className="flex justify-end gap-2">
+                    {entity === "reviews" && <ReviewModerationActions id={String(row.id)} status={String(row.status)} />}
+                    <Link href={`/admin/${entity}?edit=${row.id}`} aria-label="Edit" className="rounded-lg border p-2 hover:bg-slate-50">
+                      <Pencil className="size-4" />
+                    </Link>
+                    <form action={deleteEntity}>
+                      <input type="hidden" name="entity" value={entity} />
+                      <input type="hidden" name="id" value={row.id} />
+                      <button aria-label="Delete" className="rounded-lg border border-red-100 p-2 text-red-600 hover:bg-red-50">
+                        <Trash2 className="size-4" />
+                      </button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {!rows?.length && <p className="p-12 text-center text-sm text-slate-500">No records yet. Add the first {config.singular}.</p>}
+    </div>
   </main>
 }

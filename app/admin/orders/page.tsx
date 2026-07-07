@@ -81,15 +81,15 @@ export default async function OrdersPage() {
       {/* Desktop view: Hidden on mobile, flex table on md screens and up */}
       <div className="mt-7 hidden overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm md:block">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+          <table className="w-full text-left text-sm border-collapse">
             <thead className="border-b bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
               <tr>
-                <th className="px-5 py-4 font-semibold">Order</th>
-                <th className="px-5 py-4 font-semibold">Date</th>
-                <th className="px-5 py-4 font-semibold">Items Ordered</th>
-                <th className="px-5 py-4 font-semibold">Total</th>
-                <th className="px-5 py-4 font-semibold">Status</th>
-                <th className="px-5 py-4 font-semibold">Shipping Address</th>
+                <th className="px-6 py-4 font-semibold">Order</th>
+                <th className="px-6 py-4 font-semibold">Date</th>
+                <th className="px-6 py-4 font-semibold">Items Ordered</th>
+                <th className="px-6 py-4 font-semibold">Total</th>
+                <th className="px-6 py-4 font-semibold">Shipping Address</th>
+                <th className="px-6 py-4 font-semibold">Status</th>
               </tr>
             </thead>
             <tbody>
@@ -99,11 +99,11 @@ export default async function OrdersPage() {
                 const items = itemsByOrder[order.id] ?? []
                 return (
                   <tr key={order.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition last:border-0">
-                    <td className="px-5 py-4 font-bold text-slate-900">{order.order_number}</td>
-                    <td className="px-5 py-4 text-slate-500">{new Date(order.created_at).toLocaleDateString("en-NG", { dateStyle: "medium" })}</td>
+                    <td className="px-6 py-5 align-top font-bold text-slate-900">{order.order_number}</td>
+                    <td className="px-6 py-5 align-top text-slate-500 whitespace-nowrap">{new Date(order.created_at).toLocaleDateString("en-NG", { dateStyle: "medium" })}</td>
                     
                     {/* Items Ordered cell */}
-                    <td className="px-5 py-4 min-w-[220px]">
+                    <td className="px-6 py-5 align-top min-w-[220px]">
                       <div className="flex flex-col gap-2">
                         {items.map((item: any) => {
                           const product = productMap[item.product_id]
@@ -129,12 +129,31 @@ export default async function OrdersPage() {
                       </div>
                     </td>
 
-                    <td className="px-5 py-4 font-semibold text-slate-900">
+                    <td className="px-6 py-5 align-top font-semibold text-slate-900 whitespace-nowrap">
                       {new Intl.NumberFormat("en-NG", { style: "currency", currency: order.currency }).format(
                         Number(order.total),
                       )}
                     </td>
-                    <td className="px-5 py-4">
+
+                    <td className="px-6 py-5 align-top min-w-[260px]">
+                      {addr ? (
+                        <div className="flex flex-col gap-0.5 text-xs text-slate-600 leading-normal">
+                          <p className="font-semibold text-slate-900">{addr.name}</p>
+                          <p>{addr.street}{addr.street2 ? `, ${addr.street2}` : ""}</p>
+                          <p>{addr.city}, {addr.state} {addr.zip}</p>
+                          <p className="text-slate-500 font-medium text-[10px] uppercase tracking-wider">{addr.country}</p>
+                          {addr.phone && (
+                            <p className="mt-1 flex items-center gap-1 font-mono text-[11px] text-slate-500">
+                              <span className="text-slate-400">📞</span> {addr.phone}
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-slate-400">—</span>
+                      )}
+                    </td>
+
+                    <td className="px-6 py-5 align-top">
                       <form action={updateOrder} className="flex items-center gap-2">
                         <input type="hidden" name="id" value={order.id} />
                         <select 
@@ -152,23 +171,6 @@ export default async function OrdersPage() {
                           Save
                         </button>
                       </form>
-                    </td>
-                    <td className="px-5 py-4 min-w-[260px]">
-                      {addr ? (
-                        <div className="flex flex-col gap-0.5 text-xs text-slate-600 leading-normal">
-                          <p className="font-semibold text-slate-900">{addr.name}</p>
-                          <p>{addr.street}{addr.street2 ? `, ${addr.street2}` : ""}</p>
-                          <p>{addr.city}, {addr.state} {addr.zip}</p>
-                          <p className="text-slate-500 font-medium text-[10px] uppercase tracking-wider">{addr.country}</p>
-                          {addr.phone && (
-                            <p className="mt-1 flex items-center gap-1 font-mono text-[11px] text-slate-500">
-                              <span className="text-slate-400">📞</span> {addr.phone}
-                            </p>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-slate-400">—</span>
-                      )}
                     </td>
                   </tr>
                 )

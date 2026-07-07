@@ -113,14 +113,14 @@ export default async function OrdersPage() {
                             </p>
                           </div>
 
-                          {/* ⭐ Review badge — only for delivered orders */}
-                         {isDelivered && (
+                          {/* ⭐ Write Review button — only for delivered orders */}
+                          {isDelivered && (
                             <Link
                               href={`${productHref}#reviews`}
-                              className="flex shrink-0 items-center gap-1 rounded-full border border-amber-400/60 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700 transition-colors hover:bg-amber-100 dark:border-amber-500/40 dark:bg-amber-950/40 dark:text-amber-400 dark:hover:bg-amber-950/70"
+                              className="group flex shrink-0 items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50/80 px-3 py-1.5 text-xs font-semibold text-amber-800 shadow-sm transition hover:bg-amber-100 hover:border-amber-300 hover:text-amber-900 active:scale-95 dark:border-amber-500/20 dark:bg-amber-950/30 dark:text-amber-400 dark:hover:bg-amber-950/50"
                             >
-                              <Star className="size-3 fill-amber-400 text-amber-400" />
-                              Review
+                              <Star className="size-3.5 fill-amber-400 text-amber-400 transition-transform group-hover:scale-110 group-hover:rotate-12" />
+                              <span>Write Review</span>
                             </Link>
                           )}
                         </li>
