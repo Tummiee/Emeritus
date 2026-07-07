@@ -9,7 +9,7 @@ import ReviewCard from "@/components/ReviewCard";
 import { ReviewForm } from "@/components/reviews/ReviewForm";
 import { useCart } from "@/lib/contexts/CartContext";
 import { useWishlist } from "@/lib/contexts/WishlistContext";
-import { Check, Heart, ShoppingCart, Star, X } from "lucide-react";
+import { Check, Heart, ShoppingCart, Star, X, ImageOff } from "lucide-react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 
@@ -54,6 +54,11 @@ export default function ProductDetailPage() {
 
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
+  const [imageError, setImageError] = useState(false);
+
+  useEffect(() => {
+    setImageError(false);
+  }, [selectedImage, product]);
 
   const productReviews: any[] = product?.reviewsList ?? [];
   const reviewCount = productReviews.length;
@@ -119,30 +124,48 @@ export default function ProductDetailPage() {
               transition={{ duration: 0.6 }}
             >
               <div className="mb-4 overflow-hidden rounded-[2rem] border border-purple-100 bg-white p-3 shadow-[0_30px_80px_-40px_rgba(92,63,187,0.3)]">
-                <Image
-                  src={images[selectedImage]}
-                  alt={product.name}
-                  width={1200}
-                  height={900}
-                  className="h-[440px] w-full rounded-[1.5rem] object-cover"
-                />
+                {imageError || !images[selectedImage] || images[selectedImage] === "/placeholder.jpg" ? (
+                  <div className="flex h-[300px] sm:h-[400px] md:h-[440px] w-full flex-col items-center justify-center rounded-[1.5rem] bg-slate-50 text-slate-400">
+                    <ImageOff className="h-12 w-12 text-slate-300" />
+                    <p className="mt-2 text-sm text-slate-500 font-medium">No image available</p>
+                  </div>
+                ) : (
+                  <Image
+                    src={images[selectedImage]}
+                    alt={product.name}
+                    width={1200}
+                    height={900}
+                    className="h-[300px] sm:h-[400px] md:h-[440px] w-full rounded-[1.5rem] object-cover"
+                    onError={() => setImageError(true)}
+                  />
+                )}
               </div>
               <div className="grid grid-cols-3 gap-4">
-                {images.map((img, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => setSelectedImage(idx)}
-                    className={`overflow-hidden rounded-2xl border-2 ${selectedImage === idx ? "border-purple-700" : "border-slate-200"}`}
-                  >
-                    <Image
-                      src={img}
-                      alt=""
-                      width={400}
-                      height={400}
-                      className="h-24 w-full object-cover"
-                    />
-                  </button>
-                ))}
+                {images.map((img, idx) => {
+                  const isFallback = imageError || !img || img === "/placeholder.jpg";
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => setSelectedImage(idx)}
+                      className={`overflow-hidden rounded-2xl border-2 transition ${selectedImage === idx ? "border-purple-700" : "border-slate-200"}`}
+                    >
+                      {isFallback ? (
+                        <div className="flex h-20 sm:h-24 w-full items-center justify-center bg-slate-50 text-slate-400">
+                          <ImageOff className="h-6 w-6 text-slate-300" />
+                        </div>
+                      ) : (
+                        <Image
+                          src={img}
+                          alt=""
+                          width={400}
+                          height={400}
+                          className="h-20 sm:h-24 w-full object-cover"
+                          onError={() => setImageError(true)}
+                        />
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </motion.div>
 

@@ -78,7 +78,7 @@ export default function PrivacyPage() {
                 </p>
                 <p className="text-muted-foreground mt-2">
                   Email: privacy@emeritusgadget.com<br />
-                  Address: Lagos, Nigeria
+                  Address: Ile-Ife, Osun, Nigeria
                 </p>
               </section>
 

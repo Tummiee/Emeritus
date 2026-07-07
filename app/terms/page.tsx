@@ -78,7 +78,7 @@ export default function TermsPage() {
               <section>
                 <h2 className="text-2xl font-bold text-foreground mb-4">8. Governing Law</h2>
                 <p className="text-muted-foreground">
-                  These terms and conditions are governed by and construed in accordance with the laws of Nigeria, and you irrevocably submit to the exclusive jurisdiction of the courts located in Lagos, Nigeria.
+                  These terms and conditions are governed by and construed in accordance with the laws of Nigeria, and you irrevocably submit to the exclusive jurisdiction of the courts located in Ile-Ife, Osun, Nigeria.
                 </p>
               </section>
 

@@ -58,7 +58,7 @@ export default function ContactPage() {
     {
       icon: MapPin,
       title: 'Office',
-      content: 'Lagos, Nigeria',
+      content: 'Ile-Ife, Osun, Nigeria',
       subtext: 'Visit our showroom',
     },
     {
