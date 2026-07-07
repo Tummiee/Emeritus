@@ -64,29 +64,7 @@ export default async function OrdersPage() {
                 key={order.id}
                 className="overflow-hidden rounded-2xl border border-border bg-card"
               >
-                {/* ── Order header ─────────────────────────────────── */}
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
-                  <div className="min-w-0">
-                    <p className="truncate font-semibold">{order.order_number}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(order.created_at).toLocaleDateString("en-NG", {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                      })}
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <StatusBadge status={order.status} />
-                    <p className="font-semibold tabular-nums">
-                      {new Intl.NumberFormat("en-NG", {
-                        style: "currency",
-                        currency: order.currency,
-                      }).format(Number(order.total))}
-                    </p>
-                  </div>
-                </div>
+               
 
                 {/* ── Order items ───────────────────────────────────── */}
                 {items.length > 0 && (
@@ -150,6 +128,30 @@ export default async function OrdersPage() {
                     })}
                   </ul>
                 )}
+
+                 {/* ── Order details ─────────────────────────────────── */}
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold">{order.order_number}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(order.created_at).toLocaleDateString("en-NG", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <StatusBadge status={order.status} />
+                    <p className="font-semibold tabular-nums">
+                      {new Intl.NumberFormat("en-NG", {
+                        style: "currency",
+                        currency: order.currency,
+                      }).format(Number(order.total))}
+                    </p>
+                  </div>
+                </div>
               </div>
             )
           })}

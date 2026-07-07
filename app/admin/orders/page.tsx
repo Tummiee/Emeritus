@@ -54,8 +54,8 @@ export default async function OrdersPage() {
                 <th className="px-5 py-4 font-semibold">Order</th>
                 <th className="px-5 py-4 font-semibold">Date</th>
                 <th className="px-5 py-4 font-semibold">Total</th>
-                <th className="px-5 py-4 font-semibold">Status</th>
                 <th className="px-5 py-4 font-semibold">Shipping Address</th>
+                <th className="px-5 py-4 font-semibold">Status</th>
               </tr>
             </thead>
             <tbody>
@@ -69,6 +69,23 @@ export default async function OrdersPage() {
                     <td className="px-5 py-4 font-semibold text-slate-900">
                       {new Intl.NumberFormat("en-NG", { style: "currency", currency: order.currency }).format(
                         Number(order.total),
+                      )}
+                    </td>
+                    <td className="px-5 py-4 min-w-[260px]">
+                      {addr ? (
+                        <div className="flex flex-col gap-0.5 text-xs text-slate-600 leading-normal">
+                          <p className="font-semibold text-slate-900">{addr.name}</p>
+                          <p>{addr.street}{addr.street2 ? `, ${addr.street2}` : ""}</p>
+                          <p>{addr.city}, {addr.state} {addr.zip}</p>
+                          <p className="text-slate-500 font-medium text-[10px] uppercase tracking-wider">{addr.country}</p>
+                          {addr.phone && (
+                            <p className="mt-1 flex items-center gap-1 font-mono text-[11px] text-slate-500">
+                              <span className="text-slate-400">📞</span> {addr.phone}
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-slate-400">—</span>
                       )}
                     </td>
                     <td className="px-5 py-4">
@@ -89,23 +106,6 @@ export default async function OrdersPage() {
                           Save
                         </button>
                       </form>
-                    </td>
-                    <td className="px-5 py-4 min-w-[260px]">
-                      {addr ? (
-                        <div className="flex flex-col gap-0.5 text-xs text-slate-600 leading-normal">
-                          <p className="font-semibold text-slate-900">{addr.name}</p>
-                          <p>{addr.street}{addr.street2 ? `, ${addr.street2}` : ""}</p>
-                          <p>{addr.city}, {addr.state} {addr.zip}</p>
-                          <p className="text-slate-500 font-medium text-[10px] uppercase tracking-wider">{addr.country}</p>
-                          {addr.phone && (
-                            <p className="mt-1 flex items-center gap-1 font-mono text-[11px] text-slate-500">
-                              <span className="text-slate-400">📞</span> {addr.phone}
-                            </p>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-slate-400">—</span>
-                      )}
                     </td>
                   </tr>
                 )
