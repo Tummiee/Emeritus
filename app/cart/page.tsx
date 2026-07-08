@@ -81,59 +81,65 @@ export default function CartPage() {
                 {items.map((item, index) => (
                   <motion.div
                     key={item.productId}
-                    className="flex gap-6 p-6 border-b border-border last:border-b-0"
+                    className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 sm:p-6 border-b border-border last:border-b-0"
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.1, duration: 0.4 }}
                   >
-                    {/* Product Image */}
-                    <div className="w-24 h-24 rounded-lg bg-muted flex-shrink-0 overflow-hidden">
-                      <img
-                        src={item.image}
-                        alt={item.name}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-
-                    {/* Product Details */}
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-foreground mb-2">{item.name}</h3>
-                      <p className="text-lg font-bold text-primary mb-4">₦{item.price.toLocaleString("en-NG", { maximumFractionDigits: 2 })}</p>
-
-                      {/* Quantity Controls */}
-                      <div className="flex items-center gap-3">
-                        <button
-                          onClick={() => updateQuantity(item.productId, item.quantity - 1)}
-                          className="p-1 hover:bg-muted rounded transition-colors"
-                        >
-                          <Minus className="w-4 h-4 text-muted-foreground" />
-                        </button>
-                        <input
-                          type="number"
-                          min="1"
-                          value={item.quantity}
-                          onChange={(e) =>
-                            updateQuantity(item.productId, parseInt(e.target.value) || 1)
-                          }
-                          className="w-16 px-2 py-1 border border-border rounded text-center"
+                    {/* Product Image & Details */}
+                    <div className="flex flex-1 items-start gap-4 sm:gap-6 w-full">
+                      {/* Product Image */}
+                      <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-lg bg-muted flex-shrink-0 overflow-hidden">
+                        <img
+                          src={item.image}
+                          alt={item.name}
+                          className="w-full h-full object-cover"
                         />
-                        <button
-                          onClick={() => updateQuantity(item.productId, item.quantity + 1)}
-                          className="p-1 hover:bg-muted rounded transition-colors"
-                        >
-                          <Plus className="w-4 h-4 text-muted-foreground" />
-                        </button>
+                      </div>
+
+                      {/* Product Details */}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-foreground text-sm sm:text-base mb-1 sm:mb-2">{item.name}</h3>
+                        <p className="text-base sm:text-lg font-bold text-primary mb-3">₦{item.price.toLocaleString("en-NG", { maximumFractionDigits: 2 })}</p>
+
+                        {/* Quantity Controls */}
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={() => updateQuantity(item.productId, item.quantity - 1)}
+                            className="p-1 hover:bg-muted rounded transition-colors"
+                          >
+                            <Minus className="w-4 h-4 text-muted-foreground" />
+                          </button>
+                          <input
+                            type="number"
+                            min="1"
+                            value={item.quantity}
+                            onChange={(e) =>
+                              updateQuantity(item.productId, parseInt(e.target.value) || 1)
+                            }
+                            className="w-16 px-2 py-1 border border-border rounded text-center"
+                          />
+                          <button
+                            onClick={() => updateQuantity(item.productId, item.quantity + 1)}
+                            className="p-1 hover:bg-muted rounded transition-colors"
+                          >
+                            <Plus className="w-4 h-4 text-muted-foreground" />
+                          </button>
+                        </div>
                       </div>
                     </div>
 
                     {/* Total & Remove */}
-                    <div className="text-right flex-shrink-0">
-                      <p className="text-xl font-bold text-foreground mb-4">
-                        ₦{(item.price * item.quantity).toLocaleString("en-NG", { maximumFractionDigits: 2 })}
-                      </p>
+                    <div className="flex md:flex-col justify-between items-center md:items-end w-full md:w-auto pt-3 md:pt-0 border-t md:border-t-0 border-dashed border-border flex-shrink-0">
+                      <div className="text-left md:text-right">
+                        <p className="text-xs text-muted-foreground md:hidden mb-0.5">Total</p>
+                        <p className="text-lg md:text-xl font-bold text-foreground">
+                          ₦{(item.price * item.quantity).toLocaleString("en-NG", { maximumFractionDigits: 2 })}
+                        </p>
+                      </div>
                       <button
                         onClick={() => removeItem(item.productId)}
-                        className="text-red-600 hover:text-red-700 transition-colors"
+                        className="text-red-600 hover:text-red-700 transition-colors p-1.5 md:p-0 md:mt-4"
                       >
                         <Trash2 className="w-5 h-5" />
                       </button>
