@@ -19,9 +19,9 @@ interface InitializePaymentParams {
 }
 
 interface PaymentResponse {
-  authorization_url: string;
-  access_code: string;
-  reference: string;
+  checkoutUrl: string;
+  paymentReference: string;
+  transactionReference: string;
   orderId: string;
   orderNumber?: string;
 }
@@ -113,37 +113,12 @@ export function usePayment() {
     }
   };
 
-  const openPaystackCheckout = (reference: string, publicKey: string) => {
-    if (typeof window === "undefined") {
-      console.error("Paystack checkout can only be opened in browser");
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.src = "https://js.paystack.co/v1/inline.js";
-    script.async = true;
-
-    script.onload = () => {
-      const PaystackPop = (window as any).PaystackPop;
-
-      PaystackPop.cancelledTransaction = () => {
-        setError("Payment cancelled");
-      };
-
-      PaystackPop.transactionVerified = () => {
-        setSuccess(true);
-      };
-    };
-
-    document.body.appendChild(script);
-  };
-
   return {
     isLoading,
     error,
     success,
     initializePayment,
     verifyPayment,
-    openPaystackCheckout,
+
   };
 }

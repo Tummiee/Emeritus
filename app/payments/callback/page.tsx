@@ -1,31 +1,20 @@
-import Footer from "@/components/Footer";
-import Header from "@/components/Header";
-import { PaymentResult } from "@/components/payments/PaymentResult";
+import { redirect } from "next/navigation"
 
-export default async function PaymentCallbackPage({
+export default async function LegacyPaymentCallbackPage({
   searchParams,
 }: {
-  searchParams: Promise<{ reference?: string; trxref?: string }>;
+  searchParams: Promise<{
+    paymentReference?: string
+    transactionReference?: string
+    paymentStatus?: string
+    reference?: string
+  }>
 }) {
-  const params = await searchParams;
-  const reference = params.reference ?? params.trxref ?? "";
-
-  return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <Header />
-      {reference ? (
-        <PaymentResult reference={reference} />
-      ) : (
-        <main className="flex flex-1 items-center justify-center px-4 text-center">
-          <div>
-            <h1 className="text-3xl font-bold">Payment reference missing</h1>
-            <p className="mt-3 text-muted-foreground">
-              Open your order history to check the latest payment status.
-            </p>
-          </div>
-        </main>
-      )}
-      <Footer />
-    </div>
-  );
+  const params = await searchParams
+  const query = new URLSearchParams()
+  const reference = params.paymentReference ?? params.reference
+  if (reference) query.set("paymentReference", reference)
+  if (params.transactionReference) query.set("transactionReference", params.transactionReference)
+  if (params.paymentStatus) query.set("paymentStatus", params.paymentStatus)
+  redirect("/payment/callback" + (query.size ? "?" + query.toString() : ""))
 }

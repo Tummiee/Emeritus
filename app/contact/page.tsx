@@ -48,12 +48,14 @@ export default function ContactPage() {
       title: 'Email',
       content: 'support@emeritusgadgets.com',
       subtext: 'We respond within 24 hours',
+      href: 'mailto:support@emeritusgadgets.com',
     },
     {
       icon: Phone,
       title: 'Phone',
       content: '+234 701 234 5678',
       subtext: 'Mon-Fri, 9AM-6PM WAT',
+      href: 'tel:+2347012345678',
     },
     {
       icon: MapPin,
@@ -66,6 +68,7 @@ export default function ContactPage() {
       title: 'Business Hours',
       content: 'Mon-Sat: 9AM-6PM',
       subtext: 'Sun: Closed',
+      href: '#contact-form',
     },
   ]
 
@@ -97,23 +100,25 @@ export default function ContactPage() {
         <section className="px-4 py-20 max-w-6xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-20">
             {contactInfo.map((info, i) => (
-              <motion.div
+              <motion.a
                 key={i}
+                href={info.href}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: i * 0.1 }}
-                className="bg-card rounded-lg border border-border p-6 text-center"
+                className="bg-card rounded-lg border border-border p-6 text-center transition-colors hover:border-primary"
               >
                 <info.icon className="w-12 h-12 mx-auto text-primary mb-4" />
                 <h3 className="font-bold text-foreground mb-2">{info.title}</h3>
                 <p className="text-foreground font-semibold mb-1">{info.content}</p>
                 <p className="text-sm text-muted-foreground">{info.subtext}</p>
-              </motion.div>
+              </motion.a>
             ))}
           </div>
 
           {/* Contact Form */}
           <motion.div
+            id="contact-form"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}

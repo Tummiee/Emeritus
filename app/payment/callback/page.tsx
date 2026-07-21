@@ -16,16 +16,16 @@ export default function PaymentCallbackPage() {
   const { verifyPayment } = usePayment()
   const started = useRef(false)
   const [status, setStatus] = useState<"checking" | "success" | "error">("checking")
-  const [message, setMessage] = useState("Confirming your payment with Paystack…")
+  const [message, setMessage] = useState("Confirming your payment with Monnify…")
 
   useEffect(() => {
     if (!authReady || started.current) return
     started.current = true
     const params = new URLSearchParams(window.location.search)
-    const reference = params.get("reference") ?? params.get("trxref")
+    const reference = params.get("paymentReference") ?? params.get("reference")
     if (!reference) {
       setStatus("error")
-      setMessage("Paystack did not return a payment reference.")
+      setMessage("Monnify did not return a payment reference.")
       return
     }
     void verifyPayment(reference).then((verified) => {

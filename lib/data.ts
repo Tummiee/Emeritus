@@ -98,7 +98,7 @@ export async function getHomepageContent(): Promise<HomepageContent> {
       },
       {
         title: "Secure Payments",
-        description: "Paystack, transfer, card, wallet and USSD support."
+        description: "Monnify, transfer, card, wallet and USSD support."
       }
     ]
   };

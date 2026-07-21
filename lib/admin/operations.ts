@@ -30,10 +30,20 @@ export async function updateInventory(formData: FormData) {
 export async function updateOrder(formData: FormData) {
   await requireAdmin()
   const parsed = z.object({ id: z.string().uuid(), status: z.enum(["pending","confirmed","processing","shipped","delivered","cancelled","refunded"]) }).safeParse({ id: formData.get("id"), status: formData.get("status") })
-  if (!parsed.success) return
+  if (!parsed.success) redirect("/admin/orders?error=invalid-status")
   const supabase = await createClient()
-  await supabase.from("orders").update({ status: parsed.data.status }).eq("id", parsed.data.id)
+  const { data, error } = await supabase
+    .from("orders")
+    .update({ status: parsed.data.status })
+    .eq("id", parsed.data.id)
+    .select("status")
+    .single()
+  if (error || data?.status !== parsed.data.status) {
+    redirect("/admin/orders?error=status-not-saved")
+  }
   revalidatePath("/admin/orders")
+  revalidatePath("/account/orders")
+  redirect("/admin/orders?updated=status")
 }
 
 export async function updateCustomer(

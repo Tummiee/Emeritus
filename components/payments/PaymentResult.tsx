@@ -11,7 +11,7 @@ type Result = "checking" | "success" | "pending" | "failed";
 export function PaymentResult({ reference }: { reference: string }) {
   const { authReady, clearCart } = useCart();
   const [result, setResult] = useState<Result>("checking");
-  const [message, setMessage] = useState("Confirming your payment with Paystack.");
+  const [message, setMessage] = useState("Confirming your payment with Monnify.");
 
   useEffect(() => {
     if (!authReady) return;
@@ -36,7 +36,7 @@ export function PaymentResult({ reference }: { reference: string }) {
       }
       if (response.status === 202 || payload.data?.status === "pending") {
         setResult("pending");
-        setMessage("Paystack is still processing this payment. You can safely check your orders again shortly.");
+        setMessage("Monnify is still processing this payment. You can safely check your orders again shortly.");
         return;
       }
       setResult("failed");
@@ -46,7 +46,7 @@ export function PaymentResult({ reference }: { reference: string }) {
     void verify().catch(() => {
       if (!cancelled) {
         setResult("pending");
-        setMessage("Payment confirmation is temporarily unavailable. Your order will update automatically when Paystack confirms it.");
+        setMessage("Payment confirmation is temporarily unavailable. Your order will update automatically when Monnify confirms it.");
       }
     });
 

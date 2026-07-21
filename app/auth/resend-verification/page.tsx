@@ -1,17 +1,12 @@
-import Header from "@/components/Header"
 import Footer from "@/components/Footer"
+import Header from "@/components/Header"
 import { AuthForm } from "@/components/auth/AuthForm"
 import { safeNextPath } from "@/lib/auth/helpers"
 
-const notices: Record<string, string> = {
-  "confirmation-link": "That verification link is invalid or has expired. Request a new verification email.",
-  oauth: "Google sign-in could not be completed. Please try again.",
-}
-
-export default async function LoginPage({
+export default async function ResendVerificationPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string; error?: string }>
+  searchParams: Promise<{ email?: string; next?: string }>
 }) {
   const params = await searchParams
   return (
@@ -19,9 +14,9 @@ export default async function LoginPage({
       <Header />
       <main className="flex flex-1 items-center justify-center px-4 py-12">
         <AuthForm
-          mode="login"
+          mode="resend"
+          initialEmail={params.email ?? ""}
           next={safeNextPath(params.next)}
-          notice={params.error ? notices[params.error] : undefined}
         />
       </main>
       <Footer />

@@ -27,6 +27,6 @@ export const faqs = [
     id: "payments",
     question: "Are payments secure?",
     answer:
-      "Card and bank payments are processed by Paystack. Emeritus Gadget does not store your card details.",
+      "Card and bank payments are processed by Monnify. Emeritus Gadget does not store your card details.",
   },
 ] as const;

@@ -189,7 +189,7 @@ export interface Payment {
   amount: number
   currency: string
   status: 'pending' | 'completed' | 'failed'
-  method: 'paystack' | 'bank_transfer'
+  method: 'monnify' | 'bank_transfer'
   reference: string
   transactionId?: string
   errorMessage?: string
@@ -247,7 +247,7 @@ export interface AdminSettings {
   taxRate: number
   shippingCost: number
   freeShippingThreshold: number
-  paystackPublicKey: string
+  monnifyContractCode: string
   maintenanceMode: boolean
   updatedAt: Date
 }

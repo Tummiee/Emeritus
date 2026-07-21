@@ -205,7 +205,7 @@ export default function CheckoutPage() {
       couponCode,
       idempotencyKey: checkoutKey(),
     })
-    if (payment?.authorization_url) window.location.assign(payment.authorization_url)
+    if (payment?.checkoutUrl) window.location.assign(payment.checkoutUrl)
   }
 
   if (!items.length) {
@@ -234,7 +234,7 @@ export default function CheckoutPage() {
           <form onSubmit={submit} className="space-y-7">
             <div>
               <h1 className="text-3xl font-bold">Checkout</h1>
-              <p className="mt-2 text-sm text-muted-foreground">Payment will open on Paystack after your order is validated.</p>
+              <p className="mt-2 text-sm text-muted-foreground">Payment will open on Monnify after your order is validated.</p>
             </div>
 
             {error && (
@@ -365,7 +365,7 @@ export default function CheckoutPage() {
               <div className="flex items-start gap-3">
                 <ShieldCheck className="mt-0.5 size-5 text-emerald-600" />
                 <div>
-                  <h2 className="font-semibold">Secure Paystack payment</h2>
+                  <h2 className="font-semibold">Secure Monnify payment</h2>
                   <p className="mt-1 text-sm leading-6 text-muted-foreground">
                     Your final total and stock availability are verified on the server before payment begins.
                   </p>
@@ -375,7 +375,7 @@ export default function CheckoutPage() {
 
             <button disabled={isLoading || shippingLoading || !currentShippingQuote} className="flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-primary px-5 font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60">
               <Lock className="size-4" />
-              {isLoading ? "Preparing secure payment…" : shippingLoading ? "Calculating shipping…" : "Continue to Paystack"}
+              {isLoading ? "Preparing secure payment…" : shippingLoading ? "Calculating shipping…" : "Continue to Monnify"}
             </button>
           </form>
 
@@ -411,7 +411,7 @@ export default function CheckoutPage() {
                 <span>{money(discountedTotal + (currentShippingQuote?.fee ?? 0))}</span>
               </div>
               <p className="text-xs leading-5 text-muted-foreground">
-                Product availability, coupon eligibility and the final amount are recalculated securely before Paystack opens.
+                Product availability, coupon eligibility and the final amount are recalculated securely before Monnify opens.
               </p>
             </div>
           </aside>

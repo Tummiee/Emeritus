@@ -16,9 +16,9 @@ const statusColors: Record<string, string> = {
 
 function getFormattedAddress(shippingAddress: any) {
   if (!shippingAddress) return null
-  
-  const name = shippingAddress.recipient_name || 
-               [shippingAddress.firstName, shippingAddress.lastName].filter(Boolean).join(" ") || 
+
+  const name = shippingAddress.recipient_name ||
+               [shippingAddress.firstName, shippingAddress.lastName].filter(Boolean).join(" ") ||
                "Customer"
   const phone = shippingAddress.phone || ""
   const street = shippingAddress.line1 || shippingAddress.address || ""
@@ -60,7 +60,7 @@ export default async function OrdersPage() {
   const productMap = Object.fromEntries(
     (products ?? []).map((p) => [p.id, p])
   )
-  
+
   const itemsByOrder = (allItems ?? []).reduce<Record<string, any[]>>((acc, item) => {
     if (!acc[item.order_id]) acc[item.order_id] = []
     acc[item.order_id]!.push(item)
@@ -101,7 +101,7 @@ export default async function OrdersPage() {
                   <tr key={order.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition last:border-0">
                     <td className="px-6 py-5 align-top font-bold text-slate-900">{order.order_number}</td>
                     <td className="px-6 py-5 align-top text-slate-500 whitespace-nowrap">{new Date(order.created_at).toLocaleDateString("en-NG", { dateStyle: "medium" })}</td>
-                    
+
                     {/* Items Ordered cell */}
                     <td className="px-6 py-5 align-top min-w-[220px]">
                       <div className="flex flex-col gap-2">
@@ -156,9 +156,10 @@ export default async function OrdersPage() {
                     <td className="px-6 py-5 align-top">
                       <form action={updateOrder} className="flex items-center gap-2">
                         <input type="hidden" name="id" value={order.id} />
-                        <select 
-                          name="status" 
-                          defaultValue={order.status} 
+                        <select
+                          key={`${order.id}:${order.status}:status`}
+                          name="status"
+                          defaultValue={order.status}
                           className={`rounded-xl border px-3 py-1.5 text-xs font-semibold outline-none focus:ring-2 focus:ring-primary/15 transition ${statusClass}`}
                         >
                           {statuses.map((status) => (
@@ -209,9 +210,10 @@ export default async function OrdersPage() {
                 <input type="hidden" name="id" value={order.id} />
                 <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</span>
                 <div className="flex gap-2">
-                  <select 
-                    name="status" 
-                    defaultValue={order.status} 
+                  <select
+                    key={`${order.id}:${order.status}:status`}
+                          name="status"
+                    defaultValue={order.status}
                     className={`rounded-xl border px-3 py-1.5 text-xs font-semibold outline-none focus:ring-2 focus:ring-primary/15 transition ${statusClass}`}
                   >
                     {statuses.map((status) => (
