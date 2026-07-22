@@ -18,12 +18,26 @@ export async function POST(request: Request) {
   }
 
   const next = safeNextPath(parsed.data.next)
-  const supabase = await createClient()
+  let supabase
+  let callback
+  try {
+    supabase = await createClient()
+    callback = authCallbackUrl(await getSiteUrl(), "signup", next)
+  } catch (error) {
+    console.error("[Auth] API signup configuration failed", {
+      error: error instanceof Error ? error.message : "Unknown configuration error",
+    })
+    return NextResponse.json({
+      error: "Account email service is temporarily unavailable.",
+      code: "configuration-error",
+    }, { status: 503 })
+  }
+
   const { data, error } = await supabase.auth.signUp({
     email: parsed.data.email,
     password: parsed.data.password,
     options: {
-      emailRedirectTo: authCallbackUrl(await getSiteUrl(), "signup", next),
+      emailRedirectTo: callback,
       data: {
         first_name: parsed.data.firstName,
         last_name: parsed.data.lastName,

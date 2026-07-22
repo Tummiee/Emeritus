@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState } from "react"
+import { useActionState, useState } from "react"
 import { changePassword, createRepairRequest, deleteAddress, saveAddress, setDefaultAddress, updateProfile, type AccountState } from "@/lib/account/actions"
 
 const initialAccountState: AccountState = { status: "idle" }
@@ -38,7 +38,43 @@ type AddressCardData = {
 }
 
 export function AddressCard({ address }: { address: AddressCardData }) {
-  const [state, action, pending] = useActionState(setDefaultAddress, initialAccountState)
+  const [editing, setEditing] = useState(false)
+  const [defaultState, defaultAction, defaultPending] = useActionState(setDefaultAddress, initialAccountState)
+  const [editState, editAction, editPending] = useActionState(saveAddress, initialAccountState)
+
+  if (editing) {
+    return (
+      <article className="rounded-2xl border border-border p-5">
+        <form action={editAction} className="space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="font-semibold">Edit address</h2>
+            {address.is_default && <span className="rounded-full bg-primary/10 px-2 py-1 text-xs text-primary">Default</span>}
+          </div>
+          <Notice state={editState} />
+          <input type="hidden" name="id" value={address.id} />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <input name="label" required aria-label="Address label" placeholder="Label (Home, Office)" defaultValue={address.label} className={input} />
+            <input name="recipient" required aria-label="Recipient name" placeholder="Recipient name" defaultValue={address.recipient_name} className={input} />
+            <input name="phone" required type="tel" aria-label="Phone" placeholder="Phone" defaultValue={address.phone} className={input} />
+            <input name="line1" required aria-label="Street address" placeholder="Street address" defaultValue={address.line1} className={input} />
+            <input name="line2" aria-label="Apartment or landmark" placeholder="Apartment / landmark (optional)" defaultValue={address.line2 ?? ""} className={input} />
+            <input name="city" required aria-label="City" placeholder="City" defaultValue={address.city} className={input} />
+            <input name="state" required aria-label="State" placeholder="State" defaultValue={address.state} className={input} />
+            <input name="postalCode" aria-label="Postal code" placeholder="Postal code" defaultValue={address.postal_code ?? ""} className={input} />
+            <input name="country" required aria-label="Country" defaultValue={address.country} className={input} />
+          </div>
+          <label className="flex gap-2 text-sm text-muted-foreground">
+            <input name="isDefault" type="checkbox" defaultChecked={address.is_default} className="accent-primary" /> Make this my default address
+          </label>
+          <div className="flex flex-wrap items-center gap-4">
+            <Submit label="Save changes" pending={editPending} />
+            <button type="button" disabled={editPending} onClick={() => setEditing(false)} className="text-sm font-medium text-muted-foreground disabled:opacity-50">Cancel</button>
+          </div>
+        </form>
+      </article>
+    )
+  }
+
   return (
     <article className="rounded-2xl border border-border p-5">
       <div className="flex justify-between gap-3">
@@ -52,13 +88,14 @@ export function AddressCard({ address }: { address: AddressCardData }) {
         {address.country}<br />
         {address.phone}
       </p>
-      {state.message && <div className="mt-3"><Notice state={state} /></div>}
+      {defaultState.message && <div className="mt-3"><Notice state={defaultState} /></div>}
       <div className="mt-4 flex flex-wrap gap-4">
+        <button type="button" onClick={() => setEditing(true)} className="text-sm font-medium text-primary">Edit</button>
         {!address.is_default && (
-          <form action={action}>
+          <form action={defaultAction}>
             <input type="hidden" name="id" value={address.id} />
-            <button disabled={pending} className="text-sm font-medium text-primary disabled:opacity-50">
-              {pending ? "Updating…" : "Make default"}
+            <button disabled={defaultPending} className="text-sm font-medium text-primary disabled:opacity-50">
+              {defaultPending ? "Updating…" : "Make default"}
             </button>
           </form>
         )}

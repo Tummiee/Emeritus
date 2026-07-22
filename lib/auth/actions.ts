@@ -8,6 +8,7 @@ import {
   classifyAuthError,
   safeNextPath,
   type AuthErrorKind,
+  type AuthFlow,
 } from "@/lib/auth/helpers"
 import { getSiteUrl } from "@/lib/auth/url"
 import { createClient } from "@/lib/supabase/server"
@@ -49,6 +50,28 @@ function deliveryFailure(kind: AuthErrorKind): AuthState {
     status: "error",
     code: kind,
     message: "The authentication email could not be sent. Please try again shortly.",
+  }
+}
+
+function authConfigurationFailure(): AuthState {
+  return {
+    status: "error",
+    code: "unknown",
+    message: "Account email service is temporarily unavailable. Please try again shortly.",
+  }
+}
+
+async function prepareEmailAuth(flow: Extract<AuthFlow, "signup" | "recovery">, next: string) {
+  try {
+    const supabase = await createClient()
+    const callback = authCallbackUrl(await getSiteUrl(), flow, next)
+    return { supabase, callback }
+  } catch (error) {
+    console.error("[Auth] email flow configuration failed", {
+      flow,
+      error: error instanceof Error ? error.message : "Unknown configuration error",
+    })
+    return null
   }
 }
 
@@ -109,14 +132,14 @@ export async function register(_: AuthState, formData: FormData): Promise<AuthSt
     return { status: "error", message: "Check the highlighted fields.", fields: fields(parsed.error) }
   }
 
-  const supabase = await createClient()
   const next = safeNextPath(formData.get("next"))
-  const callback = authCallbackUrl(await getSiteUrl(), "signup", next)
-  const { data, error } = await supabase.auth.signUp({
+  const auth = await prepareEmailAuth("signup", next)
+  if (!auth) return authConfigurationFailure()
+  const { data, error } = await auth.supabase.auth.signUp({
     email: parsed.data.email,
     password: parsed.data.password,
     options: {
-      emailRedirectTo: callback,
+      emailRedirectTo: auth.callback,
       data: {
         first_name: parsed.data.firstName,
         last_name: parsed.data.lastName,
@@ -141,14 +164,10 @@ export async function forgotPassword(_: AuthState, formData: FormData): Promise<
   if (!parsed.success) {
     return { status: "error", fields: { email: parsed.error.issues[0].message } }
   }
-  const supabase = await createClient()
-  const callback = authCallbackUrl(
-    await getSiteUrl(),
-    "recovery",
-    "/auth/reset-password",
-  )
-  const { error } = await supabase.auth.resetPasswordForEmail(parsed.data, {
-    redirectTo: callback,
+  const auth = await prepareEmailAuth("recovery", "/auth/reset-password")
+  if (!auth) return authConfigurationFailure()
+  const { error } = await auth.supabase.auth.resetPasswordForEmail(parsed.data, {
+    redirectTo: auth.callback,
   })
   if (error) {
     logAuthFailure("password-recovery", error)
@@ -172,16 +191,12 @@ export async function resendVerification(_: AuthState, formData: FormData): Prom
   if (!parsed.success) {
     return { status: "error", fields: { email: parsed.error.issues[0].message } }
   }
-  const supabase = await createClient()
-  const callback = authCallbackUrl(
-    await getSiteUrl(),
-    "signup",
-    safeNextPath(formData.get("next")),
-  )
-  const { error } = await supabase.auth.resend({
+  const auth = await prepareEmailAuth("signup", safeNextPath(formData.get("next")))
+  if (!auth) return authConfigurationFailure()
+  const { error } = await auth.supabase.auth.resend({
     type: "signup",
     email: parsed.data,
-    options: { emailRedirectTo: callback },
+    options: { emailRedirectTo: auth.callback },
   })
   if (error) {
     logAuthFailure("resend-verification", error)
