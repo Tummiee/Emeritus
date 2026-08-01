@@ -26,7 +26,7 @@ A full-stack Next.js 16 ecommerce platform for selling premium gadgets and techn
 
 ### Payment Integration
 
-- **Monnify Integration** - Secure hosted checkout through Monnify
+- **Paystack and Monnify** - Switchable secure hosted checkout providers
 - **Payment Verification** - Webhook verification for payment confirmation
 - **Order Creation** - Automatic order creation after successful payment
 
@@ -36,7 +36,7 @@ A full-stack Next.js 16 ecommerce platform for selling premium gadgets and techn
 - **Backend**: Next.js API Routes
 - **Database**: Supabase PostgreSQL with Row Level Security
 - **UI Components**: shadcn/ui
-- **Payment**: Monnify
+- **Payment**: Paystack (default) or Monnify
 - **State Management**: Context API, Custom Hooks
 - **Styling**: Tailwind CSS with custom design tokens
 
@@ -63,6 +63,7 @@ A full-stack Next.js 16 ecommerce platform for selling premium gadgets and techn
    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_your_key
    SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
    NEXT_PUBLIC_SITE_URL=http://localhost:3000
+   PAYSTACK_SECRET_KEY=your_paystack_secret_key
    MONNIFY_API_KEY=your_monnify_api_key
    MONNIFY_SECRET_KEY=your_monnify_secret_key
    MONNIFY_CONTRACT_CODE=your_contract_code
@@ -77,7 +78,8 @@ A full-stack Next.js 16 ecommerce platform for selling premium gadgets and techn
    `202607010006_checkout_payments_tracking.sql`,
    `202607020001_storefront_interactions.sql`, and
    `202607030001_paystack_hardening.sql`, and
-   `202607210001_monnify_payments.sql`.
+   `202607210001_monnify_payments.sql`, and
+   `202608010001_payment_provider_switch.sql`.
 
 4. **Run the development server**
 
@@ -153,6 +155,7 @@ The application uses a premium tech-focused design system with:
 - `/admin/orders` - Order management
 - `/admin/customers` - Customer management
 - `/admin/analytics` - Analytics and reports
+- `/admin/payments` - Active payment provider
 - `/admin/settings` - Store settings
 
 ## 🔌 API Endpoints
@@ -177,9 +180,10 @@ The application uses a premium tech-focused design system with:
 
 ### Payments
 
-- `POST /api/payments/initialize` - Initialize Monnify payment
+- `GET /api/payments/provider` - Read the active checkout provider
+- `POST /api/payments/initialize` - Initialize the active provider
 - `POST /api/payments/verify` - Verify payment
-- `POST /api/payments/webhook` - Monnify webhook handler
+- `POST /api/payments/webhook` - Paystack and Monnify webhook handler
 
 ### Other
 
@@ -191,14 +195,16 @@ The application uses a premium tech-focused design system with:
 
 ## 💳 Payment Integration
 
-This project uses Monnify hosted checkout for payment processing. To enable payments:
+This project supports Paystack and Monnify hosted checkout. Paystack is the
+default for new installations, and administrators can switch providers from
+`/admin/payments`.
 
-1. Create a Monnify merchant account and obtain sandbox API credentials
-2. Add the API key, secret key, contract code and sandbox base URL to `.env.local`
+1. Create merchant accounts and obtain test credentials for the providers you will enable
+2. Set `PAYSTACK_SECRET_KEY` and/or the four `MONNIFY_*` variables
 3. Apply every Supabase migration in filename order
-4. Configure `https://YOUR_PUBLIC_DOMAIN/api/payments/webhook` as the webhook
-   Transaction Completion URL in the Monnify dashboard
-5. Complete the test-mode checkout and webhook scenarios before using live keys
+4. Configure `https://YOUR_PUBLIC_DOMAIN/api/payments/webhook` in both provider dashboards
+5. Select the active provider in the admin Payments tab
+6. Complete test-mode checkout and webhook scenarios before using live keys
 
 Only authenticated users can create orders. Prices, coupons, inventory, totals,
 payment references, and settlement are controlled by the server. A browser
@@ -249,7 +255,7 @@ This is a standard Next.js 16 application and can be deployed to any Node.js hos
 
 - Product, customer, order, repair, review, coupon, tracking, payment, media,
   inventory, homepage, and administration data use Supabase
-- Payment processing is integrated with Monnify; validate sandbox checkout and webhooks before using live credentials
+- Payment processing supports Paystack and Monnify; validate test checkout and webhooks before using live credentials
 - Email notifications can be added by integrating email services
 - All API endpoints support mock data and are ready for database integration
 
@@ -272,3 +278,5 @@ This project is part of the Emeritus Gadget platform. All rights reserved.
 # Emeritus_store
 
 # Emeritus
+#   E m e r i t u s - G a d g e t s  
+ 
