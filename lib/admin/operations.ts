@@ -8,6 +8,7 @@ import { validateAdminImage } from "@/lib/admin/image-upload"
 import { generateReportData } from "@/lib/admin/report-generation"
 import { reportRequestSchema } from "@/lib/admin/reports"
 import { requireAdmin } from "@/lib/auth/session"
+import { isPaymentProvider, paymentProviderIsConfigured } from "@/lib/payments/provider"
 import { NIGERIAN_STATES } from "@/lib/shipping/nigeria"
 import { createClient } from "@/lib/supabase/server"
 
@@ -71,6 +72,7 @@ export async function updateCustomer(
 export async function saveSetting(formData: FormData) {
   const user = await requireAdmin()
   const key = z.string().min(1).max(100).parse(formData.get("key"))
+  if (key === "payment_provider") redirect("/admin/payments")
   const label = z.string().min(1).max(120).parse(formData.get("label"))
   const group = z.string().min(1).max(80).parse(formData.get("group"))
   const raw = String(formData.get("value") ?? "")
@@ -83,9 +85,33 @@ export async function saveSetting(formData: FormData) {
 
 export async function deleteSetting(formData: FormData) {
   await requireAdmin()
+  const key = String(formData.get("key"))
+  if (key === "payment_provider") redirect("/admin/payments")
   const supabase = await createClient()
-  await supabase.from("store_settings").delete().eq("key", String(formData.get("key")))
+  await supabase.from("store_settings").delete().eq("key", key)
   revalidatePath("/admin/settings")
+}
+
+export async function updatePaymentProvider(formData: FormData) {
+  const user = await requireAdmin()
+  const provider = formData.get("provider")
+  if (!isPaymentProvider(provider)) redirect("/admin/payments?error=invalid-provider")
+  if (!paymentProviderIsConfigured(provider)) redirect(`/admin/payments?error=${provider}-not-configured`)
+
+  const supabase = await createClient()
+  const { error } = await supabase.from("store_settings").upsert({
+    key: "payment_provider",
+    value: provider,
+    label: "Active payment provider",
+    group_name: "payments",
+    updated_by: user.id,
+    updated_at: new Date().toISOString(),
+  })
+  if (error) redirect("/admin/payments?error=save-failed")
+
+  revalidatePath("/admin/payments")
+  revalidatePath("/checkout")
+  redirect(`/admin/payments?updated=${provider}`)
 }
 
 export async function saveTaxRule(formData: FormData) {

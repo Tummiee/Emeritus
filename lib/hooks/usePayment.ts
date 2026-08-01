@@ -22,6 +22,7 @@ interface PaymentResponse {
   checkoutUrl: string;
   paymentReference: string;
   transactionReference: string;
+  provider: "paystack" | "monnify";
   orderId: string;
   orderNumber?: string;
 }

@@ -3,6 +3,7 @@ import Image from "next/image"
 import { Package, Star } from "lucide-react"
 import { requireUser } from "@/lib/auth/session"
 import { createClient } from "@/lib/supabase/server"
+import { RetryPaymentButton } from "@/components/payments/RetryPaymentButton"
 
 export default async function OrdersPage() {
   const user = await requireUser()
@@ -143,7 +144,12 @@ export default async function OrdersPage() {
                   </div>
 
                   <div className="flex items-center gap-3">
-                    <StatusBadge status={order.status} />
+                    <div className="flex flex-col items-end gap-2 sm:flex-row sm:items-center">
+                      <StatusBadge status={order.status} />
+                      {order.status === "pending" && (
+                        <RetryPaymentButton orderId={order.id} />
+                      )}
+                    </div>
                     <p className="font-semibold tabular-nums">
                       {new Intl.NumberFormat("en-NG", {
                         style: "currency",

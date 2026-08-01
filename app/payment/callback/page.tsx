@@ -16,7 +16,7 @@ export default function PaymentCallbackPage() {
   const { verifyPayment } = usePayment()
   const started = useRef(false)
   const [status, setStatus] = useState<"checking" | "success" | "error">("checking")
-  const [message, setMessage] = useState("Confirming your payment with Monnify…")
+  const [message, setMessage] = useState("Confirming your payment with the payment provider…")
 
   useEffect(() => {
     if (!authReady || started.current) return
@@ -25,7 +25,7 @@ export default function PaymentCallbackPage() {
     const reference = params.get("paymentReference") ?? params.get("reference")
     if (!reference) {
       setStatus("error")
-      setMessage("Monnify did not return a payment reference.")
+      setMessage("The payment provider did not return a payment reference.")
       return
     }
     void verifyPayment(reference).then((verified) => {

@@ -189,7 +189,7 @@ export default function Hero() {
             {[
               { title: "Original devices", value: "Verified & trusted" },
               { title: "Fast dispatch", value: "Same-day readiness" },
-              { title: "Secure checkout", value: "Monnify + transfer" },
+              { title: "Secure checkout", value: "Paystack / Monnify" },
             ].map((item) => (
               <div
                 key={item.title}

@@ -5,7 +5,7 @@ import Image from "next/image"
 import { usePathname } from "next/navigation"
 import { signOut } from "@/lib/auth/actions"
 import {
-  BadgePercent, BarChart3, Boxes, Building2, CircleDollarSign, Clapperboard,
+  BadgePercent, BarChart3, Boxes, Building2, CircleDollarSign, Clapperboard, CreditCard,
   FolderOpen, ImageIcon, LayoutDashboard, LogOut, MessageSquareText, Package, ReceiptText,
   Settings, ShoppingCart, Tags, TicketPercent, Truck, Users, Wrench,
 } from "lucide-react"
@@ -14,7 +14,7 @@ const navigation = [
   ["Overview", [["/admin", "Dashboard", LayoutDashboard], ["/admin/analytics", "Analytics", BarChart3], ["/admin/revenue", "Revenue", CircleDollarSign]]],
   ["Commerce", [["/admin/orders", "Orders", ShoppingCart], ["/admin/customers", "Customers", Users], ["/admin/products", "Products", Package], ["/admin/offers", "Offers", BadgePercent], ["/admin/inventory", "Inventory", Boxes], ["/admin/categories", "Categories", Tags], ["/admin/brands", "Brands", Building2], ["/admin/coupons", "Coupons", TicketPercent], ["/admin/reviews", "Reviews", MessageSquareText]]],
   ["Content", [["/admin/media", "Media library", ImageIcon], ["/admin/hero", "Hero manager", Clapperboard], ["/admin/homepage", "Homepage manager", FolderOpen]]],
-  ["Operations", [["/admin/repairs", "Repair bookings", Wrench], ["/admin/reports", "Reports", ReceiptText], ["/admin/shipping", "Shipping", Truck], ["/admin/tax", "Tax", BadgePercent], ["/admin/settings", "Settings", Settings]]],
+  ["Operations", [["/admin/repairs", "Repair bookings", Wrench], ["/admin/reports", "Reports", ReceiptText], ["/admin/payments", "Payments", CreditCard], ["/admin/shipping", "Shipping", Truck], ["/admin/tax", "Tax", BadgePercent], ["/admin/settings", "Settings", Settings]]],
 ] as const
 
 export default function AdminSidebar() {
