@@ -595,9 +595,15 @@ export function Homepage({ content }: { content: HomepageContent }) {
       });
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Could not subscribe right now.";
+        error instanceof Error
+          ? error.message
+          : "Could not subscribe right now.";
       setNewsletterError(message);
-      showToast({ kind: "error", title: "Subscription failed", description: message });
+      showToast({
+        kind: "error",
+        title: "Subscription failed",
+        description: message,
+      });
     } finally {
       setNewsletterPending(false);
     }
@@ -825,20 +831,22 @@ export function Homepage({ content }: { content: HomepageContent }) {
           </div>
         </section>
 
-        <section className="border-y border-border bg-foreground py-20 text-background sm:py-28">
+        <section className="border-y border-border bg-card py-20 text-foreground sm:py-28">
           <div className={container}>
             <Reveal>
-              <Eyebrow light>Customer stories</Eyebrow>
+              <Eyebrow>Customer stories</Eyebrow>
+
               <h2 className="max-w-2xl text-balance text-4xl font-semibold leading-none tracking-[-0.05em] sm:text-5xl">
                 Good technology. Even better service.
               </h2>
             </Reveal>
+
             <div className="mt-12 grid gap-4 lg:grid-cols-3">
               {content.testimonials.map((testimonial, index) => (
                 <Reveal
                   key={testimonial.id}
                   delay={index * 0.06}
-                  className="rounded-2xl border border-background/10 bg-background/5 p-6 sm:p-8"
+                  className="rounded-2xl border border-border bg-background p-6 sm:p-8"
                 >
                   <div className="flex gap-1 text-warning">
                     {Array.from({ length: testimonial.rating }).map(
@@ -847,12 +855,17 @@ export function Homepage({ content }: { content: HomepageContent }) {
                       ),
                     )}
                   </div>
-                  <blockquote className="mt-8 text-lg leading-8 tracking-[-0.02em]">
+
+                  <blockquote className="mt-8 text-lg leading-8 tracking-[-0.02em] text-foreground">
                     &ldquo;{testimonial.quote}&rdquo;
                   </blockquote>
-                  <div className="mt-8 border-t border-background/10 pt-5">
-                    <p className="text-sm font-semibold">{testimonial.name}</p>
-                    <p className="mt-1 text-xs text-background/50">
+
+                  <div className="mt-8 border-t border-border pt-5">
+                    <p className="text-sm font-semibold text-foreground">
+                      {testimonial.name}
+                    </p>
+
+                    <p className="mt-1 text-xs text-muted-foreground">
                       {testimonial.detail}
                     </p>
                   </div>
