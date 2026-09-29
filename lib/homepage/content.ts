@@ -369,6 +369,7 @@ export const homepageSeed: HomepageContent = {
           { label: "Visit store", href: "#store" },
           { label: "Privacy", href: "/privacy" },
           { label: "Terms", href: "/terms" },
+          {label: "Refund and return policy", href: "/refund-and-return-policy" },
         ],
       },
     ],
