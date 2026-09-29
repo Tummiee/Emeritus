@@ -79,7 +79,7 @@ export default function ContactPage() {
       icon: MapPin,
       title: "Office",
       content: "Ile-Ife, Osun, Nigeria",
-      subtext: "Visit our showrooms",
+      subtext: "Visit our showroom",
     },
     {
       icon: Clock,
