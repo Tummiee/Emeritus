@@ -1,7 +1,5 @@
 import "server-only"
 
-import sharp from "sharp"
-
 import { validateAdminImage } from "@/lib/admin/image-upload"
 
 const DEFAULT_IMAGE_OUTPUT_MAX_BYTES = 3 * 1024 * 1024
@@ -38,6 +36,7 @@ export async function optimizeAdminImage(
   const preset = presets[purpose]
 
   try {
+    const { default: sharp } = await import("sharp")
     const input = Buffer.from(await file.arrayBuffer())
     const image = sharp(input, {
       animated: file.type === "image/gif",
