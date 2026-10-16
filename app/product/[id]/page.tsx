@@ -12,6 +12,7 @@ import { useWishlist } from "@/lib/contexts/WishlistContext";
 import { Check, Heart, ShoppingCart, Star, X, ImageOff } from "lucide-react";
 import { motion } from "framer-motion";
 import Image from "next/image";
+import ProductImageLightbox from "@/components/ProductImageLightbox";
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -19,6 +20,8 @@ export default function ProductDetailPage() {
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [selectedImage, setSelectedImage] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
@@ -29,6 +32,8 @@ export default function ProductDetailPage() {
       .then(async (response) => {
         const result = await response.json();
         if (!response.ok) throw new Error(result.error || "Product not found");
+        setLightboxOpen(false);
+        setSelectedImage(0);
         setProduct(result.data ?? null);
       })
       .catch((error) => {
@@ -53,7 +58,6 @@ export default function ProductDetailPage() {
   const isWishlisted = wishlistItems.includes(productId);
 
   const [quantity, setQuantity] = useState(1);
-  const [selectedImage, setSelectedImage] = useState(0);
   const [imageError, setImageError] = useState(false);
 
   useEffect(() => {
@@ -92,7 +96,7 @@ export default function ProductDetailPage() {
     addItem(productId, quantity);
   };
 
-  const images = [product.image, product.image, product.image];
+  const images: string[] = [product.image];
 
   return (
     <div className="min-h-screen flex flex-col bg-[linear-gradient(135deg,_#ffffff_0%,_#f8f5ff_100%)]">
@@ -130,14 +134,22 @@ export default function ProductDetailPage() {
                     <p className="mt-2 text-sm text-slate-500 font-medium">No image available</p>
                   </div>
                 ) : (
-                  <Image
-                    src={images[selectedImage]}
-                    alt={product.name}
-                    width={1200}
-                    height={900}
-                    className="h-[300px] sm:h-[400px] md:h-[440px] w-full rounded-[1.5rem] object-cover"
-                    onError={() => setImageError(true)}
-                  />
+                  <button
+                    type="button"
+                    aria-label={`View larger image of ${product.name}`}
+                    aria-haspopup="dialog"
+                    onClick={() => setLightboxOpen(true)}
+                    className="block w-full cursor-zoom-in rounded-[1.5rem] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-purple-700"
+                  >
+                    <Image
+                      src={images[selectedImage]}
+                      alt={product.name}
+                      width={1200}
+                      height={900}
+                      className="h-[300px] sm:h-[400px] md:h-[440px] w-full rounded-[1.5rem] object-cover"
+                      onError={() => setImageError(true)}
+                    />
+                  </button>
                 )}
               </div>
               <div className="grid grid-cols-3 gap-4">
@@ -146,6 +158,9 @@ export default function ProductDetailPage() {
                   return (
                     <button
                       key={idx}
+                      type="button"
+                      aria-label={`Select product image ${idx + 1}`}
+                      aria-pressed={selectedImage === idx}
                       onClick={() => setSelectedImage(idx)}
                       className={`overflow-hidden rounded-2xl border-2 transition ${selectedImage === idx ? "border-purple-700" : "border-slate-200"}`}
                     >
@@ -358,6 +373,14 @@ export default function ProductDetailPage() {
       </main>
 
       <Footer />
+      {lightboxOpen && (
+        <ProductImageLightbox
+          images={images}
+          initialIndex={selectedImage}
+          productName={product.name}
+          onClose={() => setLightboxOpen(false)}
+        />
+      )}
     </div>
   );
 }

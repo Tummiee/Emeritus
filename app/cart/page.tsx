@@ -1,31 +1,76 @@
-'use client'
+"use client";
 
-import React, { useEffect, useState } from 'react'
-import Link from 'next/link'
-import Header from '@/components/Header'
-import Footer from '@/components/Footer'
-import { useCart } from '@/lib/contexts/CartContext'
-import { Trash2, Plus, Minus, ShoppingCart } from 'lucide-react'
-import { motion } from 'framer-motion'
+import React, { useEffect, useState } from "react";
+import Link from "next/link";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
+import { useCart } from "@/lib/contexts/CartContext";
+import { Trash2, Plus, Minus, ShoppingCart } from "lucide-react";
+import { motion } from "framer-motion";
+
+type TaxState =
+  | { status: "loading" }
+  | { status: "error" }
+  | { status: "ready"; rule: { name: string; rate: number } | null };
 
 export default function CartPage() {
-  const { items, total, discount, couponCode, discountedTotal, removeItem, updateQuantity, clearCart, applyCoupon, removeCoupon } = useCart()
-  const [promoCode, setPromoCode] = useState('')
-  const [promoMessage, setPromoMessage] = useState('')
-  const [applyingPromo, setApplyingPromo] = useState(false)
-  const [taxRule, setTaxRule] = useState({ name: 'VAT', rate: 7.5 })
+  const {
+    items,
+    total,
+    discount,
+    couponCode,
+    discountedTotal,
+    removeItem,
+    updateQuantity,
+    clearCart,
+    applyCoupon,
+    removeCoupon,
+  } = useCart();
+  const [promoCode, setPromoCode] = useState("");
+  const [promoMessage, setPromoMessage] = useState("");
+  const [applyingPromo, setApplyingPromo] = useState(false);
+  const [taxState, setTaxState] = useState<TaxState>({ status: "loading" });
+  const [taxRequest, setTaxRequest] = useState(0);
   useEffect(() => {
-    const controller = new AbortController()
-    fetch('/api/tax?country=NG', { cache: 'no-store', signal: controller.signal })
-      .then((response) => response.ok ? response.json() : null)
-      .then((result) => {
-        if (result?.data) setTaxRule({ name: result.data.name, rate: Number(result.data.rate) })
+    const controller = new AbortController();
+    fetch("/api/tax?country=NG", {
+      cache: "no-store",
+      signal: controller.signal,
+    })
+      .then((response) => {
+        if (!response.ok) throw new Error("Tax request failed");
+        return response.json();
       })
-      .catch(() => undefined)
-    return () => controller.abort()
-  }, [])
-  const tax = discountedTotal * (taxRule.rate / 100)
-  const orderTotal = discountedTotal + tax
+      .then((result) => {
+        if (controller.signal.aborted) return;
+        if (result?.success !== true) throw new Error("Invalid tax response");
+        if (result.data === null) {
+          setTaxState({ status: "ready", rule: null });
+          return;
+        }
+        const rule = result.data;
+        if (
+          typeof rule?.name !== "string" ||
+          !rule.name.trim() ||
+          typeof rule.rate !== "number" ||
+          !Number.isFinite(rule.rate) ||
+          rule.rate < 0 ||
+          rule.rate > 100
+        ) {
+          throw new Error("Invalid tax rule");
+        }
+        setTaxState({ status: "ready", rule: { name: rule.name, rate: rule.rate } });
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setTaxState({ status: "error" });
+      });
+    return () => controller.abort();
+  }, [taxRequest]);
+  const taxRule = taxState.status === "ready" ? taxState.rule : null;
+  const tax = taxState.status === "ready"
+    ? discountedTotal * ((taxRule?.rate ?? 0) / 100)
+    : null;
+  const orderTotal = tax === null ? null : discountedTotal + tax;
 
   if (items.length === 0) {
     return (
@@ -39,8 +84,12 @@ export default function CartPage() {
             transition={{ duration: 0.6 }}
           >
             <ShoppingCart className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-50" />
-            <h1 className="text-3xl font-bold text-foreground mb-2">Your cart is empty</h1>
-            <p className="text-muted-foreground mb-8">Add some products to get started!</p>
+            <h1 className="text-3xl font-bold text-foreground mb-2">
+              Your cart is empty
+            </h1>
+            <p className="text-muted-foreground mb-8">
+              Add some products to get started!
+            </p>
             <Link
               href="/shop"
               className="inline-block px-8 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
@@ -51,7 +100,7 @@ export default function CartPage() {
         </main>
         <Footer />
       </div>
-    )
+    );
   }
 
   return (
@@ -99,13 +148,22 @@ export default function CartPage() {
 
                       {/* Product Details */}
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-foreground text-sm sm:text-base mb-1 sm:mb-2">{item.name}</h3>
-                        <p className="text-base sm:text-lg font-bold text-primary mb-3">₦{item.price.toLocaleString("en-NG", { maximumFractionDigits: 2 })}</p>
+                        <h3 className="font-semibold text-foreground text-sm sm:text-base mb-1 sm:mb-2">
+                          {item.name}
+                        </h3>
+                        <p className="text-base sm:text-lg font-bold text-primary mb-3">
+                          ₦
+                          {item.price.toLocaleString("en-NG", {
+                            maximumFractionDigits: 2,
+                          })}
+                        </p>
 
                         {/* Quantity Controls */}
                         <div className="flex items-center gap-3">
                           <button
-                            onClick={() => updateQuantity(item.productId, item.quantity - 1)}
+                            onClick={() =>
+                              updateQuantity(item.productId, item.quantity - 1)
+                            }
                             className="p-1 hover:bg-muted rounded transition-colors"
                           >
                             <Minus className="w-4 h-4 text-muted-foreground" />
@@ -115,12 +173,17 @@ export default function CartPage() {
                             min="1"
                             value={item.quantity}
                             onChange={(e) =>
-                              updateQuantity(item.productId, parseInt(e.target.value) || 1)
+                              updateQuantity(
+                                item.productId,
+                                parseInt(e.target.value) || 1,
+                              )
                             }
                             className="w-16 px-2 py-1 border border-border rounded text-center"
                           />
                           <button
-                            onClick={() => updateQuantity(item.productId, item.quantity + 1)}
+                            onClick={() =>
+                              updateQuantity(item.productId, item.quantity + 1)
+                            }
                             className="p-1 hover:bg-muted rounded transition-colors"
                           >
                             <Plus className="w-4 h-4 text-muted-foreground" />
@@ -132,9 +195,15 @@ export default function CartPage() {
                     {/* Total & Remove */}
                     <div className="flex md:flex-col justify-between items-center md:items-end w-full md:w-auto pt-3 md:pt-0 border-t md:border-t-0 border-dashed border-border flex-shrink-0">
                       <div className="text-left md:text-right">
-                        <p className="text-xs text-muted-foreground md:hidden mb-0.5">Total</p>
+                        <p className="text-xs text-muted-foreground md:hidden mb-0.5">
+                          Total
+                        </p>
                         <p className="text-lg md:text-xl font-bold text-foreground">
-                          ₦{(item.price * item.quantity).toLocaleString("en-NG", { maximumFractionDigits: 2 })}
+                          ₦
+                          {(item.price * item.quantity).toLocaleString(
+                            "en-NG",
+                            { maximumFractionDigits: 2 },
+                          )}
                         </p>
                       </div>
                       <button
@@ -166,21 +235,57 @@ export default function CartPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2, duration: 0.6 }}
             >
-              <h2 className="text-xl font-bold text-foreground mb-6">Order Summary</h2>
+              <h2 className="text-xl font-bold text-foreground mb-6">
+                Order Summary
+              </h2>
 
               <div className="space-y-4 mb-6 pb-6 border-b border-border">
                 <div className="flex justify-between text-muted-foreground">
                   <span>Subtotal</span>
-                  <span>₦{total.toLocaleString("en-NG", { maximumFractionDigits: 2 })}</span>
+                  <span>
+                    ₦
+                    {total.toLocaleString("en-NG", {
+                      maximumFractionDigits: 2,
+                    })}
+                  </span>
                 </div>
                 <div className="flex justify-between text-muted-foreground">
                   <span>Shipping</span>
-                  <span className="text-right text-sm">Calculated at checkout</span>
+                  <span className="text-right text-sm">
+                    Calculated at checkout
+                  </span>
                 </div>
-                <div className="flex justify-between text-muted-foreground">
-                  <span>{taxRule.name} ({taxRule.rate}%)</span>
-                  <span>₦{tax.toLocaleString("en-NG", { maximumFractionDigits: 2 })}</span>
-                </div>
+                {taxState.status === "loading" && (
+                  <div className="flex justify-between text-muted-foreground" role="status">
+                    <span>Tax</span>
+                    <span className="animate-pulse text-sm">Calculating...</span>
+                  </div>
+                )}
+                {taxState.status === "error" && (
+                  <div className="flex items-center justify-between gap-3" role="status">
+                    <span className="text-sm text-muted-foreground">Tax unavailable</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTaxState({ status: "loading" });
+                        setTaxRequest((request) => request + 1);
+                      }}
+                      className="text-sm font-semibold text-primary underline underline-offset-4"
+                    >
+                      Retry
+                    </button>
+                  </div>
+                )}
+                {taxRule && tax !== null && (
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>
+                      {taxRule.name} ({taxRule.rate}%)
+                    </span>
+                    <span>
+                      ₦{tax.toLocaleString("en-NG", { maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                )}
                 {discount > 0 && (
                   <div className="flex justify-between text-emerald-700">
                     <span>Discount ({couponCode})</span>
@@ -191,7 +296,13 @@ export default function CartPage() {
 
               <div className="flex justify-between text-lg font-bold text-foreground mb-6">
                 <span>Total</span>
-                <span>₦{orderTotal.toLocaleString("en-NG", { maximumFractionDigits: 2 })}</span>
+                <span>
+                  {orderTotal === null
+                    ? taxState.status === "loading" ? "Calculating..." : "Unavailable"
+                    : `₦${orderTotal.toLocaleString("en-NG", {
+                        maximumFractionDigits: 2,
+                      })}`}
+                </span>
               </div>
 
               <Link
@@ -210,7 +321,9 @@ export default function CartPage() {
 
               {/* Promo Code */}
               <div className="mt-6 pt-6 border-t border-border">
-                <p className="text-sm text-muted-foreground mb-2">Have a promo code?</p>
+                <p className="text-sm text-muted-foreground mb-2">
+                  Have a promo code?
+                </p>
                 <div className="flex gap-2">
                   <input
                     type="text"
@@ -223,18 +336,32 @@ export default function CartPage() {
                   <button
                     disabled={applyingPromo || !promoCode.trim()}
                     onClick={async () => {
-                      setApplyingPromo(true)
-                      const result = await applyCoupon(promoCode.trim())
-                      setPromoMessage(result.message)
-                      setApplyingPromo(false)
+                      setApplyingPromo(true);
+                      const result = await applyCoupon(promoCode.trim());
+                      setPromoMessage(result.message);
+                      setApplyingPromo(false);
                     }}
                     className="px-3 py-2 bg-primary/10 text-primary rounded text-sm font-semibold hover:bg-primary/20 transition-colors disabled:opacity-50"
                   >
-                    {applyingPromo ? 'Applying...' : 'Apply'}
+                    {applyingPromo ? "Applying..." : "Apply"}
                   </button>
                 </div>
-                {couponCode && <button onClick={removeCoupon} className="mt-2 text-xs font-medium text-red-600">Remove {couponCode}</button>}
-                {promoMessage && <p className="mt-2 text-xs text-muted-foreground" role="status">{promoMessage}</p>}
+                {couponCode && (
+                  <button
+                    onClick={removeCoupon}
+                    className="mt-2 text-xs font-medium text-red-600"
+                  >
+                    Remove {couponCode}
+                  </button>
+                )}
+                {promoMessage && (
+                  <p
+                    className="mt-2 text-xs text-muted-foreground"
+                    role="status"
+                  >
+                    {promoMessage}
+                  </p>
+                )}
               </div>
             </motion.div>
           </div>
@@ -243,5 +370,5 @@ export default function CartPage() {
 
       <Footer />
     </div>
-  )
+  );
 }
