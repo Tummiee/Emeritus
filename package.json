@@ -3,38 +3,39 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --webpack",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "check": "npm run lint && npm run typecheck && npm run test && npm run build"
+    "check": "npm run lint && npm run typecheck && npm run test && npm run build",
+    "test:e2e": "playwright test",
+    "migrations:review": "node scripts/render-migrations.mjs --upgrade"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.110.0",
     "@vercel/analytics": "1.6.1",
-    "axios": "^1.18.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "framer-motion": "^12.42.2",
-    "js-cookie": "^3.0.8",
     "lucide-react": "^1.16.0",
-    "next": "16.2.6",
-    "nodemailer": "^9.0.3",
+    "next": "^16.4.2",
+    "nodemailer": "^10.1.2",
     "react": "^19",
     "react-dom": "^19",
     "react-hook-form": "^7.80.0",
-    "shadcn": "^4.8.0",
-    "sharp": "0.34.5",
+    "sharp": "^0.35.5",
     "tailwind-merge": "^3.3.1",
     "tw-animate-css": "^1.4.0",
     "zod": "^4.4.3",
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.10",
+    "@playwright/test": "^1.64.1",
     "@tailwindcss/postcss": "^4.2.0",
     "@types/node": "^24",
     "@types/nodemailer": "^8.0.1",
@@ -42,8 +43,9 @@
     "@types/react-dom": "^19",
     "debug": "^4.4.3",
     "eslint": "^9.39.4",
-    "eslint-config-next": "^16.2.6",
+    "eslint-config-next": "^16.4.2",
     "postcss": "^8.5",
+    "prettier": "^3.9.10",
     "tailwindcss": "^4.2.0",
     "typescript": "5.7.3",
     "vitest": "^4.1.9"
@@ -52,5 +54,9 @@
     "overrides": {
       "hono": "4.12.25"
     }
+  },
+  "overrides": {
+    "source-map-js": "^1.2.2",
+    "baseline-browser-mapping": "^2.11.0"
   }
 }

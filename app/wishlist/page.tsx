@@ -1,36 +1,83 @@
-'use client'
+"use client";
 
-import React, { useEffect, useState } from 'react'
-import Link from 'next/link'
-import Header from '@/components/Header'
-import Footer from '@/components/Footer'
-import ProductCard from '@/components/ProductCard'
-import { useWishlist } from '@/lib/contexts/WishlistContext'
-import { Heart } from 'lucide-react'
-import { motion } from 'framer-motion'
+import React, { useEffect, useState } from "react";
+import Link from "next/link";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
+import ProductCard from "@/components/ProductCard";
+import { useWishlist } from "@/lib/contexts/WishlistContext";
+import { Heart } from "lucide-react";
+import { motion } from "framer-motion";
 
 export default function WishlistPage() {
-  const { items: wishlistedIds, isLoading: wishlistLoading, syncError } = useWishlist()
-  const [products, setProducts] = useState<any[]>([])
-  const [productsLoading, setProductsLoading] = useState(true)
+  const {
+    items: wishlistedIds,
+    isLoading: wishlistLoading,
+    syncError,
+  } = useWishlist();
+  const [products, setProducts] = useState<any[]>([]);
+  const [productsLoading, setProductsLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const ids = wishlistedIds.join(",");
   useEffect(() => {
-    fetch('/api/products')
-      .then((response) => response.json())
-      .then((result) => setProducts(result.data ?? []))
-      .finally(() => setProductsLoading(false))
-  }, [])
-  const wishlistedProducts = products.filter((p) => wishlistedIds.includes(p.id))
+    if (wishlistLoading) return;
+    if (!ids) {
+      setProducts([]);
+      setProductsLoading(false);
+      return;
+    }
+    const controller = new AbortController();
+    setProductsLoading(true);
+    const all = ids.split(",");
+    const batches = [];
+    for (let i = 0; i < all.length; i += 50)
+      batches.push(
+        fetch(
+          "/api/products?ids=" + all.slice(i, i + 50).join(",") + "&limit=50",
+          { signal: controller.signal },
+        ).then(async (response) => {
+          if (!response.ok) throw new Error("Wishlist products unavailable");
+          return response.json();
+        }),
+      );
+    void Promise.all(batches)
+      .then((results) => {
+        if (!controller.signal.aborted) {
+          setProducts(results.flatMap((result) => result.data));
+          setLoadError("");
+        }
+      })
+      .catch(() => {
+        if (!controller.signal.aborted)
+          setLoadError("Could not load your products. Reload to retry.");
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setProductsLoading(false);
+      });
+    return () => controller.abort();
+  }, [ids, wishlistLoading]);
+  const wishlistedProducts = products.filter((p) =>
+    wishlistedIds.includes(p.id),
+  );
 
+  if (loadError)
+    return (
+      <div className="p-12 text-center" role="alert">
+        {loadError}
+      </div>
+    );
   if (wishlistLoading || productsLoading) {
     return (
       <div className="min-h-screen flex flex-col bg-background">
         <Header />
         <main className="flex flex-1 items-center justify-center">
-          <p className="text-sm text-muted-foreground">Loading your wishlist...</p>
+          <p className="text-sm text-muted-foreground">
+            Loading your wishlist...
+          </p>
         </main>
         <Footer />
       </div>
-    )
+    );
   }
 
   if (wishlistedProducts.length === 0) {
@@ -45,9 +92,17 @@ export default function WishlistPage() {
             transition={{ duration: 0.6 }}
           >
             <Heart className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-50" />
-            <h1 className="text-3xl font-bold text-foreground mb-2">Your wishlist is empty</h1>
-            <p className="text-muted-foreground mb-8">Save your favorite products for later!</p>
-            {syncError && <p className="mx-auto mb-5 max-w-md text-sm text-amber-700">{syncError}</p>}
+            <h1 className="text-3xl font-bold text-foreground mb-2">
+              Your wishlist is empty
+            </h1>
+            <p className="text-muted-foreground mb-8">
+              Save your favorite products for later!
+            </p>
+            {syncError && (
+              <p className="mx-auto mb-5 max-w-md text-sm text-amber-700">
+                {syncError}
+              </p>
+            )}
             <Link
               href="/shop"
               className="inline-block px-8 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
@@ -58,7 +113,7 @@ export default function WishlistPage() {
         </main>
         <Footer />
       </div>
-    )
+    );
   }
 
   return (
@@ -73,9 +128,15 @@ export default function WishlistPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-            <h1 className="text-4xl font-bold text-foreground mb-2">My Wishlist</h1>
-            <p className="text-muted-foreground">{wishlistedProducts.length} items saved</p>
-            {syncError && <p className="mt-2 text-sm text-amber-700">{syncError}</p>}
+            <h1 className="text-4xl font-bold text-foreground mb-2">
+              My Wishlist
+            </h1>
+            <p className="text-muted-foreground">
+              {wishlistedProducts.length} items saved
+            </p>
+            {syncError && (
+              <p className="mt-2 text-sm text-amber-700">{syncError}</p>
+            )}
           </motion.div>
 
           <motion.div
@@ -110,5 +171,5 @@ export default function WishlistPage() {
 
       <Footer />
     </div>
-  )
+  );
 }

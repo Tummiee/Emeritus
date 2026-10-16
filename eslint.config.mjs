@@ -15,6 +15,8 @@ export default defineConfig([
   },
   globalIgnores([
     ".next/**",
+    ".next-e2e/**",
+    ".next-production-check/**",
     "node_modules/**",
     "coverage/**",
     "next-env.d.ts",

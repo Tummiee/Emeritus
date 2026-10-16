@@ -1,3 +1,4 @@
+-- MANUAL MAINTENANCE ONLY. Never include in application migrations.
 begin;
 
 -- Stop if no administrator account exists.

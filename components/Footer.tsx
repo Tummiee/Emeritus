@@ -1,6 +1,6 @@
 import React from "react";
 import Link from "next/link";
-import Image from "next/image";
+import Image from "@/components/SafeImage";
 import { Mail, MapPin, MessageCircle, Phone } from "lucide-react";
 
 export default function Footer() {

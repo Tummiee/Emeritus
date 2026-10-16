@@ -1,7 +1,9 @@
-"use server"
+"use server";
 
-import { redirect } from "next/navigation"
-import { z } from "zod"
+import { headers } from "next/headers";
+import { rateLimit } from "@/lib/http";
+import { redirect } from "next/navigation";
+import { z } from "zod";
 
 import {
   authCallbackUrl,
@@ -9,33 +11,41 @@ import {
   safeNextPath,
   type AuthErrorKind,
   type AuthFlow,
-} from "@/lib/auth/helpers"
-import { getSiteUrl } from "@/lib/auth/url"
-import { createClient } from "@/lib/supabase/server"
+} from "@/lib/auth/helpers";
+import { getSiteUrl } from "@/lib/auth/url";
+import { createClient } from "@/lib/supabase/server";
 
 export type AuthState = {
-  status: "idle" | "error" | "success"
-  message?: string
-  fields?: Record<string, string>
-  code?: AuthErrorKind | "verification-sent" | "recovery-sent"
-}
+  status: "idle" | "error" | "success";
+  message?: string;
+  fields?: Record<string, string>;
+  code?: AuthErrorKind | "verification-sent" | "recovery-sent";
+};
 
-const email = z.string().trim().email("Enter a valid email address").max(254)
-const password = z.string().min(8, "Use at least 8 characters").max(128)
+const email = z.string().trim().email("Enter a valid email address").max(254);
+const password = z
+  .string()
+  .min(8, "Use at least 8 characters")
+  .max(128)
   .regex(/[A-Z]/, "Include an uppercase letter")
   .regex(/[a-z]/, "Include a lowercase letter")
-  .regex(/[0-9]/, "Include a number")
+  .regex(/[0-9]/, "Include a number");
 
 function fields(error: z.ZodError) {
-  return Object.fromEntries(error.issues.map((issue) => [String(issue.path[0]), issue.message]))
+  return Object.fromEntries(
+    error.issues.map((issue) => [String(issue.path[0]), issue.message]),
+  );
 }
 
-function logAuthFailure(operation: string, error: { message?: string; code?: string; status?: number }) {
+function logAuthFailure(
+  operation: string,
+  error: { message?: string; code?: string; status?: number },
+) {
   console.error("[Auth]", operation, {
     kind: classifyAuthError(error),
     code: error.code,
     status: error.status,
-  })
+  });
 }
 
 function deliveryFailure(kind: AuthErrorKind): AuthState {
@@ -43,83 +53,125 @@ function deliveryFailure(kind: AuthErrorKind): AuthState {
     return {
       status: "error",
       code: kind,
-      message: "Too many email requests were made. Wait a few minutes and try again.",
-    }
+      message:
+        "Too many email requests were made. Wait a few minutes and try again.",
+    };
   }
   return {
     status: "error",
     code: kind,
-    message: "The authentication email could not be sent. Please try again shortly.",
-  }
+    message:
+      "The authentication email could not be sent. Please try again shortly.",
+  };
 }
 
 function authConfigurationFailure(): AuthState {
   return {
     status: "error",
     code: "unknown",
-    message: "Account email service is temporarily unavailable. Please try again shortly.",
+    message:
+      "Account email service is temporarily unavailable. Please try again shortly.",
+  };
+}
+
+async function limitAuth(scope: string): Promise<AuthState | null> {
+  try {
+    await rateLimit(
+      new Request("http://internal.invalid", { headers: await headers() }),
+      scope,
+      10,
+    );
+    return null;
+  } catch {
+    return {
+      status: "error",
+      message:
+        "Authentication is temporarily unavailable or too many requests were made. Try again shortly.",
+    };
   }
 }
 
-async function prepareEmailAuth(flow: Extract<AuthFlow, "signup" | "recovery">, next: string) {
+async function prepareEmailAuth(
+  flow: Extract<AuthFlow, "signup" | "recovery">,
+  next: string,
+) {
   try {
-    const supabase = await createClient()
-    const callback = authCallbackUrl(await getSiteUrl(), flow, next)
-    return { supabase, callback }
+    const supabase = await createClient();
+    const callback = authCallbackUrl(await getSiteUrl(), flow, next);
+    return { supabase, callback };
   } catch (error) {
     console.error("[Auth] email flow configuration failed", {
       flow,
-      error: error instanceof Error ? error.message : "Unknown configuration error",
-    })
-    return null
+      error:
+        error instanceof Error ? error.message : "Unknown configuration error",
+    });
+    return null;
   }
 }
 
-export async function login(_: AuthState, formData: FormData): Promise<AuthState> {
-  const parsed = z.object({
-    email,
-    password: z.string().min(1, "Enter your password"),
-    remember: z.boolean(),
-  }).safeParse({
-    email: formData.get("email"),
-    password: formData.get("password"),
-    remember: formData.get("remember") === "on",
-  })
+export async function login(
+  _: AuthState,
+  formData: FormData,
+): Promise<AuthState> {
+  const limited = await limitAuth("login");
+  if (limited) return limited;
+  const parsed = z
+    .object({
+      email,
+      password: z.string().min(1, "Enter your password"),
+      remember: z.boolean(),
+    })
+    .safeParse({
+      email: formData.get("email"),
+      password: formData.get("password"),
+      remember: formData.get("remember") === "on",
+    });
   if (!parsed.success) {
-    return { status: "error", message: "Check the highlighted fields.", fields: fields(parsed.error) }
+    return {
+      status: "error",
+      message: "Check the highlighted fields.",
+      fields: fields(parsed.error),
+    };
   }
-  const supabase = await createClient({ remember: parsed.data.remember })
+  const supabase = await createClient({ remember: parsed.data.remember });
   const { error } = await supabase.auth.signInWithPassword({
     email: parsed.data.email,
     password: parsed.data.password,
-  })
+  });
   if (error) {
-    const kind = classifyAuthError(error)
+    const kind = classifyAuthError(error);
     if (kind === "email-not-confirmed") {
       return {
         status: "error",
         code: kind,
         message: "Verify your email address before signing in.",
         fields: { email: parsed.data.email },
-      }
+      };
     }
-    return { status: "error", message: "Email or password is incorrect." }
+    return { status: "error", message: "Email or password is incorrect." };
   }
-  redirect(safeNextPath(formData.get("next")))
+  redirect(safeNextPath(formData.get("next")));
 }
 
-export async function register(_: AuthState, formData: FormData): Promise<AuthState> {
-  const schema = z.object({
-    firstName: z.string().trim().min(2).max(60),
-    lastName: z.string().trim().min(2).max(60),
-    email,
-    password,
-    confirmPassword: z.string(),
-    terms: z.literal(true),
-  }).refine((value) => value.password === value.confirmPassword, {
-    path: ["confirmPassword"],
-    message: "Passwords do not match",
-  })
+export async function register(
+  _: AuthState,
+  formData: FormData,
+): Promise<AuthState> {
+  const limited = await limitAuth("register");
+  if (limited) return limited;
+  const schema = z
+    .object({
+      firstName: z.string().trim().min(2).max(60),
+      lastName: z.string().trim().min(2).max(60),
+      email,
+      password,
+      confirmPassword: z.string(),
+      terms: z.literal(true),
+    })
+    .refine((value) => value.password === value.confirmPassword, {
+      path: ["confirmPassword"],
+      message: "Passwords do not match",
+    });
   const parsed = schema.safeParse({
     firstName: formData.get("firstName"),
     lastName: formData.get("lastName"),
@@ -127,14 +179,18 @@ export async function register(_: AuthState, formData: FormData): Promise<AuthSt
     password: formData.get("password"),
     confirmPassword: formData.get("confirmPassword"),
     terms: formData.get("terms") === "on",
-  })
+  });
   if (!parsed.success) {
-    return { status: "error", message: "Check the highlighted fields.", fields: fields(parsed.error) }
+    return {
+      status: "error",
+      message: "Check the highlighted fields.",
+      fields: fields(parsed.error),
+    };
   }
 
-  const next = safeNextPath(formData.get("next"))
-  const auth = await prepareEmailAuth("signup", next)
-  if (!auth) return authConfigurationFailure()
+  const next = safeNextPath(formData.get("next"));
+  const auth = await prepareEmailAuth("signup", next);
+  if (!auth) return authConfigurationFailure();
   const { data, error } = await auth.supabase.auth.signUp({
     email: parsed.data.email,
     password: parsed.data.password,
@@ -145,128 +201,172 @@ export async function register(_: AuthState, formData: FormData): Promise<AuthSt
         last_name: parsed.data.lastName,
       },
     },
-  })
+  });
   if (error) {
-    logAuthFailure("signup", error)
-    return deliveryFailure(classifyAuthError(error))
+    logAuthFailure("signup", error);
+    return deliveryFailure(classifyAuthError(error));
   }
-  if (data.session) redirect(next)
+  if (data.session) redirect(next);
   return {
     status: "success",
     code: "verification-sent",
-    message: "Account created. Check your inbox and spam folder to verify your email.",
+    message:
+      "Account created. Check your inbox and spam folder to verify your email.",
     fields: { email: parsed.data.email },
-  }
+  };
 }
 
-export async function forgotPassword(_: AuthState, formData: FormData): Promise<AuthState> {
-  const parsed = email.safeParse(formData.get("email"))
+export async function forgotPassword(
+  _: AuthState,
+  formData: FormData,
+): Promise<AuthState> {
+  const limited = await limitAuth("forgotPassword");
+  if (limited) return limited;
+  const parsed = email.safeParse(formData.get("email"));
   if (!parsed.success) {
-    return { status: "error", fields: { email: parsed.error.issues[0].message } }
+    return {
+      status: "error",
+      fields: { email: parsed.error.issues[0].message },
+    };
   }
-  const auth = await prepareEmailAuth("recovery", "/auth/reset-password")
-  if (!auth) return authConfigurationFailure()
-  const { error } = await auth.supabase.auth.resetPasswordForEmail(parsed.data, {
-    redirectTo: auth.callback,
-  })
+  const auth = await prepareEmailAuth("recovery", "/auth/reset-password");
+  if (!auth) return authConfigurationFailure();
+  const { error } = await auth.supabase.auth.resetPasswordForEmail(
+    parsed.data,
+    {
+      redirectTo: auth.callback,
+    },
+  );
   if (error) {
-    logAuthFailure("password-recovery", error)
-    const kind = classifyAuthError(error)
-    if (kind === "rate-limited" || kind === "email-delivery") return deliveryFailure(kind)
+    logAuthFailure("password-recovery", error);
+    const kind = classifyAuthError(error);
+    if (kind === "rate-limited" || kind === "email-delivery")
+      return deliveryFailure(kind);
     return {
       status: "error",
       code: kind,
-      message: "A reset email could not be requested right now. Please try again shortly.",
-    }
+      message:
+        "A reset email could not be requested right now. Please try again shortly.",
+    };
   }
   return {
     status: "success",
     code: "recovery-sent",
-    message: "If an account exists for that email, a reset link has been requested. Check your inbox and spam folder.",
-  }
+    message:
+      "If an account exists for that email, a reset link has been requested. Check your inbox and spam folder.",
+  };
 }
 
-export async function resendVerification(_: AuthState, formData: FormData): Promise<AuthState> {
-  const parsed = email.safeParse(formData.get("email"))
+export async function resendVerification(
+  _: AuthState,
+  formData: FormData,
+): Promise<AuthState> {
+  const limited = await limitAuth("resendVerification");
+  if (limited) return limited;
+  const parsed = email.safeParse(formData.get("email"));
   if (!parsed.success) {
-    return { status: "error", fields: { email: parsed.error.issues[0].message } }
+    return {
+      status: "error",
+      fields: { email: parsed.error.issues[0].message },
+    };
   }
-  const auth = await prepareEmailAuth("signup", safeNextPath(formData.get("next")))
-  if (!auth) return authConfigurationFailure()
+  const auth = await prepareEmailAuth(
+    "signup",
+    safeNextPath(formData.get("next")),
+  );
+  if (!auth) return authConfigurationFailure();
   const { error } = await auth.supabase.auth.resend({
     type: "signup",
     email: parsed.data,
     options: { emailRedirectTo: auth.callback },
-  })
+  });
   if (error) {
-    logAuthFailure("resend-verification", error)
-    const kind = classifyAuthError(error)
-    if (kind === "rate-limited" || kind === "email-delivery") return deliveryFailure(kind)
+    logAuthFailure("resend-verification", error);
+    const kind = classifyAuthError(error);
+    if (kind === "rate-limited" || kind === "email-delivery")
+      return deliveryFailure(kind);
     return {
       status: "error",
       code: kind,
       message: "A verification email could not be requested right now.",
-    }
+    };
   }
   return {
     status: "success",
     code: "verification-sent",
-    message: "If the account is awaiting verification, a new email is on its way. Check your inbox and spam folder.",
-  }
+    message:
+      "If the account is awaiting verification, a new email is on its way. Check your inbox and spam folder.",
+  };
 }
 
-export async function resetPassword(_: AuthState, formData: FormData): Promise<AuthState> {
-  const parsed = z.object({
-    password,
-    confirmPassword: z.string(),
-  }).refine((value) => value.password === value.confirmPassword, {
-    path: ["confirmPassword"],
-    message: "Passwords do not match",
-  }).safeParse({
-    password: formData.get("password"),
-    confirmPassword: formData.get("confirmPassword"),
-  })
+export async function resetPassword(
+  _: AuthState,
+  formData: FormData,
+): Promise<AuthState> {
+  const limited = await limitAuth("resetPassword");
+  if (limited) return limited;
+  const parsed = z
+    .object({
+      password,
+      confirmPassword: z.string(),
+    })
+    .refine((value) => value.password === value.confirmPassword, {
+      path: ["confirmPassword"],
+      message: "Passwords do not match",
+    })
+    .safeParse({
+      password: formData.get("password"),
+      confirmPassword: formData.get("confirmPassword"),
+    });
   if (!parsed.success) {
-    return { status: "error", message: "Check the highlighted fields.", fields: fields(parsed.error) }
+    return {
+      status: "error",
+      message: "Check the highlighted fields.",
+      fields: fields(parsed.error),
+    };
   }
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) {
     return {
       status: "error",
       code: "invalid-link",
       message: "This reset link is invalid or has expired. Request a new one.",
-    }
+    };
   }
-  const { error } = await supabase.auth.updateUser({ password: parsed.data.password })
+  const { error } = await supabase.auth.updateUser({
+    password: parsed.data.password,
+  });
   if (error) {
-    logAuthFailure("password-update", error)
+    logAuthFailure("password-update", error);
     return {
       status: "error",
       code: classifyAuthError(error),
       message: "This reset link is invalid or has expired. Request a new one.",
-    }
+    };
   }
-  await supabase.auth.signOut({ scope: "others" })
-  redirect("/account/security?password=updated")
+  await supabase.auth.signOut({ scope: "others" });
+  redirect("/account/security?password=updated");
 }
 
 export async function signInWithGoogle(formData: FormData) {
-  const supabase = await createClient()
-  const next = safeNextPath(formData.get("next"))
+  const supabase = await createClient();
+  const next = safeNextPath(formData.get("next"));
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
       redirectTo: authCallbackUrl(await getSiteUrl(), "oauth", next),
       skipBrowserRedirect: true,
     },
-  })
-  if (error || !data.url) redirect("/auth/login?error=oauth")
-  redirect(data.url)
+  });
+  if (error || !data.url) redirect("/auth/login?error=oauth");
+  redirect(data.url);
 }
 
 export async function signOut() {
-  const supabase = await createClient()
-  await supabase.auth.signOut()
-  redirect("/auth/login")
+  const supabase = await createClient();
+  await supabase.auth.signOut();
+  redirect("/auth/login");
 }

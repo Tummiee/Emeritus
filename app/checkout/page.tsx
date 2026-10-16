@@ -1,43 +1,50 @@
-"use client"
+"use client";
 
-import { useEffect, useState, type ChangeEvent, type FormEvent } from "react"
-import Link from "next/link"
-import { AlertCircle, Check, Lock, MapPin, Plus, ShieldCheck } from "lucide-react"
+import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
+import Link from "next/link";
+import {
+  AlertCircle,
+  Check,
+  Lock,
+  MapPin,
+  Plus,
+  ShieldCheck,
+} from "lucide-react";
 
-import Footer from "@/components/Footer"
-import Header from "@/components/Header"
-import { useCart } from "@/lib/contexts/CartContext"
-import { usePayment } from "@/lib/hooks/usePayment"
-import { NIGERIAN_STATES } from "@/lib/shipping/nigeria"
-import { createClient } from "@/lib/supabase/client"
-
-const idempotencyStorageKey = "emeritus-checkout-idempotency"
+import Footer from "@/components/Footer";
+import Header from "@/components/Header";
+import { useCart } from "@/lib/contexts/CartContext";
+import { useCheckoutQuote } from "@/lib/hooks/useCheckoutQuote";
+import { checkoutKey } from "@/lib/checkout-key";
+import { usePayment } from "@/lib/hooks/usePayment";
+import { NIGERIAN_STATES } from "@/lib/shipping/nigeria";
+import { createClient } from "@/lib/supabase/client";
 
 type SavedAddress = {
-  id: string
-  label: string
-  recipient_name: string
-  phone: string
-  line1: string
-  line2: string | null
-  city: string
-  state: string
-  postal_code: string | null
-  country: string
-  is_default: boolean
-}
+  id: string;
+  label: string;
+  recipient_name: string;
+  phone: string;
+  line1: string;
+  line2: string | null;
+  city: string;
+  state: string;
+  postal_code: string | null;
+  country: string;
+  is_default: boolean;
+};
 
 type ShippingQuote = {
-  zoneId: string
-  zoneName: string
-  fee: number
-  freeShippingThreshold: number | null
-  estimatedDaysMin: number
-  estimatedDaysMax: number
-  quotedState: string
-  merchandiseTotal: number
-  quotedCountry: string
-}
+  zoneId: string;
+  zoneName: string;
+  fee: number;
+  freeShippingThreshold: number | null;
+  estimatedDaysMin: number;
+  estimatedDaysMax: number;
+  quotedState: string;
+  merchandiseTotal: number;
+  quotedCountry: string;
+};
 
 function deliveryFields(address: SavedAddress) {
   return {
@@ -47,44 +54,58 @@ function deliveryFields(address: SavedAddress) {
     state: address.state,
     zip: address.postal_code ?? "",
     country: address.country,
-  }
-}
-
-function checkoutKey() {
-  const existing = sessionStorage.getItem(idempotencyStorageKey)
-  if (existing) return existing
-  const created = crypto.randomUUID()
-  sessionStorage.setItem(idempotencyStorageKey, created)
-  return created
+  };
 }
 
 export default function CheckoutPage() {
-  const { items, total, discount, couponCode, discountedTotal } = useCart()
-  const { initializePayment, isLoading, error } = usePayment()
-  const [paymentProvider, setPaymentProvider] = useState<"paystack" | "monnify">("paystack")
-  const paymentProviderName = paymentProvider === "paystack" ? "Paystack" : "Monnify"
+  const {
+    items,
+    total,
+    discount,
+    couponCode,
+    discountedTotal,
+    authReady,
+    syncError,
+    refreshCart,
+  } = useCart();
+  const { initializePayment, isLoading, error } = usePayment();
+  const [paymentProvider, setPaymentProvider] = useState<
+    "paystack" | "monnify"
+  >("paystack");
+  const paymentProviderName =
+    paymentProvider === "paystack" ? "Paystack" : "Monnify";
 
   useEffect(() => {
-    const controller = new AbortController()
-    void fetch("/api/payments/provider", { cache: "no-store", signal: controller.signal })
-      .then((response) => response.ok ? response.json() : null)
+    const controller = new AbortController();
+    void fetch("/api/payments/provider", {
+      cache: "no-store",
+      signal: controller.signal,
+    })
+      .then((response) => (response.ok ? response.json() : null))
       .then((payload) => {
-        if (payload?.provider === "paystack" || payload?.provider === "monnify") {
-          setPaymentProvider(payload.provider)
+        if (
+          payload?.provider === "paystack" ||
+          payload?.provider === "monnify"
+        ) {
+          setPaymentProvider(payload.provider);
         }
       })
-      .catch(() => undefined)
-    return () => controller.abort()
-  }, [])
-  const [accountEmail, setAccountEmail] = useState("")
-  const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([])
-  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null)
-  const [addressMode, setAddressMode] = useState<"saved" | "new">("saved")
-  const [addressPickerOpen, setAddressPickerOpen] = useState(false)
-  const [addressesLoading, setAddressesLoading] = useState(true)
-  const [shippingQuote, setShippingQuote] = useState<ShippingQuote | null>(null)
-  const [shippingLoading, setShippingLoading] = useState(false)
-  const [shippingError, setShippingError] = useState("")
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, []);
+  const [accountEmail, setAccountEmail] = useState("");
+  const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(
+    null,
+  );
+  const [addressMode, setAddressMode] = useState<"saved" | "new">("saved");
+  const [addressPickerOpen, setAddressPickerOpen] = useState(false);
+  const [addressesLoading, setAddressesLoading] = useState(true);
+  const [shippingQuote, setShippingQuote] = useState<ShippingQuote | null>(
+    null,
+  );
+  const [shippingLoading, setShippingLoading] = useState(false);
+  const [shippingError, setShippingError] = useState("");
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
@@ -94,105 +115,151 @@ export default function CheckoutPage() {
     state: "",
     zip: "",
     country: "Nigeria",
-  })
+  });
 
   useEffect(() => {
-    const supabase = createClient()
+    const supabase = createClient();
     void Promise.all([
       supabase.auth.getUser(),
-      supabase.from("profiles").select("first_name,last_name,phone").maybeSingle(),
+      supabase
+        .from("profiles")
+        .select("first_name,last_name,phone")
+        .maybeSingle(),
       supabase
         .from("addresses")
-        .select("id,label,recipient_name,phone,line1,line2,city,state,postal_code,country,is_default")
+        .select(
+          "id,label,recipient_name,phone,line1,line2,city,state,postal_code,country,is_default",
+        )
         .order("is_default", { ascending: false })
         .order("created_at", { ascending: true }),
-    ]).then(([auth, profile, addressResult]) => {
-      const user = auth.data.user
-      setAccountEmail(user?.email ?? "")
-      const addresses = (addressResult.data ?? []) as SavedAddress[]
-      const preferredAddress = addresses.find((address) => address.is_default) ?? addresses[0]
-      setSavedAddresses(addresses)
-      setSelectedAddressId(preferredAddress?.id ?? null)
-      setAddressMode(preferredAddress ? "saved" : "new")
+    ])
+      .then(([auth, profile, addressResult]) => {
+        const user = auth.data.user;
+        setAccountEmail(user?.email ?? "");
+        const addresses = (addressResult.data ?? []) as SavedAddress[];
+        const preferredAddress =
+          addresses.find((address) => address.is_default) ?? addresses[0];
+        setSavedAddresses(addresses);
+        setSelectedAddressId(preferredAddress?.id ?? null);
+        setAddressMode(preferredAddress ? "saved" : "new");
 
-      const googleFullName = user?.user_metadata.full_name as string | undefined
-      const [googleFirstName, ...googleLastNameParts] = googleFullName?.split(" ") || []
+        const googleFullName =
+          typeof user?.user_metadata.full_name === "string"
+            ? user.user_metadata.full_name
+            : undefined;
+        const [googleFirstName, ...googleLastNameParts] =
+          googleFullName?.split(" ") || [];
 
-      setForm((current) => ({
-        ...current,
-        firstName: profile.data?.first_name || googleFirstName || current.firstName,
-        lastName: profile.data?.last_name || googleLastNameParts.join(" ") || current.lastName,
-        phone: profile.data?.phone || current.phone,
-        ...(preferredAddress ? deliveryFields(preferredAddress) : {}),
-      }))
-    }).finally(() => setAddressesLoading(false))
-  }, [])
+        setForm((current) => ({
+          ...current,
+          firstName:
+            profile.data?.first_name || googleFirstName || current.firstName,
+          lastName:
+            profile.data?.last_name ||
+            googleLastNameParts.join(" ") ||
+            current.lastName,
+          phone: profile.data?.phone || current.phone,
+          ...(preferredAddress ? deliveryFields(preferredAddress) : {}),
+        }));
+      })
+      .catch(() => {
+        setShippingError(
+          "Saved delivery details could not be loaded. Enter a new address or reload to retry.",
+        );
+        setAddressMode("new");
+      })
+      .finally(() => setAddressesLoading(false));
+  }, []);
 
   useEffect(() => {
-    const state = form.state.trim()
+    const state = form.state.trim();
     if (state.length < 2 || addressesLoading) {
-      return
+      return;
     }
 
-    const controller = new AbortController()
+    const controller = new AbortController();
     const timer = window.setTimeout(() => {
-      setShippingLoading(true)
-      setShippingError("")
+      setShippingLoading(true);
+      setShippingError("");
       void fetch("/api/shipping/quote", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ state, country: form.country, merchandiseTotal: discountedTotal }),
+        body: JSON.stringify({
+          state,
+          country: form.country,
+          merchandiseTotal: discountedTotal,
+        }),
         signal: controller.signal,
       })
         .then(async (response) => {
-          const result = await response.json()
-          if (!response.ok) throw new Error(result.error || "Shipping could not be calculated.")
+          const result = await response.json();
+          if (!response.ok)
+            throw new Error(
+              result.error || "Shipping could not be calculated.",
+            );
           setShippingQuote({
             ...result.data,
             fee: Number(result.data.fee),
-            freeShippingThreshold: result.data.freeShippingThreshold == null
-              ? null
-              : Number(result.data.freeShippingThreshold),
+            freeShippingThreshold:
+              result.data.freeShippingThreshold == null
+                ? null
+                : Number(result.data.freeShippingThreshold),
             quotedState: state.toLowerCase(),
             merchandiseTotal: discountedTotal,
             quotedCountry: form.country.trim().toLowerCase(),
-          })
+          });
         })
         .catch((caught) => {
-          if (caught instanceof DOMException && caught.name === "AbortError") return
-          setShippingQuote(null)
-          setShippingError(caught instanceof Error ? caught.message : "Shipping could not be calculated.")
+          if (caught instanceof DOMException && caught.name === "AbortError")
+            return;
+          setShippingQuote(null);
+          setShippingError(
+            caught instanceof Error
+              ? caught.message
+              : "Shipping could not be calculated.",
+          );
         })
         .finally(() => {
-          if (!controller.signal.aborted) setShippingLoading(false)
-        })
-    }, 300)
+          if (!controller.signal.aborted) setShippingLoading(false);
+        });
+    }, 300);
 
     return () => {
-      window.clearTimeout(timer)
-      controller.abort()
-    }
-  }, [addressesLoading, discountedTotal, form.country, form.state])
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [addressesLoading, discountedTotal, form.country, form.state]);
+
+  const pricing = useCheckoutQuote(
+    items,
+    couponCode,
+    form.state || undefined,
+    authReady && !addressesLoading,
+  );
+  const retryPricing = pricing.retry;
+  useEffect(() => {
+    if (error?.includes("prices changed")) retryPricing();
+  }, [error, retryPricing]);
 
   const selectedAddress =
-    savedAddresses.find((address) => address.id === selectedAddressId) ?? null
+    savedAddresses.find((address) => address.id === selectedAddressId) ?? null;
   const currentShippingQuote =
-    shippingQuote?.quotedState === form.state.trim().toLowerCase()
-      && shippingQuote.merchandiseTotal === discountedTotal
-      && shippingQuote.quotedCountry === form.country.trim().toLowerCase()
+    shippingQuote?.quotedState === form.state.trim().toLowerCase() &&
+    shippingQuote.merchandiseTotal === discountedTotal &&
+    shippingQuote.quotedCountry === form.country.trim().toLowerCase()
       ? shippingQuote
-      : null
+      : null;
 
   function selectSavedAddress(address: SavedAddress) {
-    setSelectedAddressId(address.id)
-    setAddressMode("saved")
-    setAddressPickerOpen(false)
-    setForm((current) => ({ ...current, ...deliveryFields(address) }))
+    setSelectedAddressId(address.id);
+    setAddressMode("saved");
+    setAddressPickerOpen(false);
+    setForm((current) => ({ ...current, ...deliveryFields(address) }));
   }
 
   function useNewAddress() {
-    setAddressMode("new")
-    setAddressPickerOpen(false)
+    setAddressMode("new");
+    setAddressPickerOpen(false);
     setForm((current) => ({
       ...current,
       phone: "",
@@ -201,27 +268,51 @@ export default function CheckoutPage() {
       state: "",
       zip: "",
       country: "Nigeria",
-    }))
+    }));
   }
 
   function update(event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
-    setForm((current) => ({ ...current, [event.target.name]: event.target.value }))
+    setForm((current) => ({
+      ...current,
+      [event.target.name]: event.target.value,
+    }));
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    if (!currentShippingQuote || shippingLoading) {
-      setShippingError("Wait for shipping to be calculated before continuing.")
-      return
+    event.preventDefault();
+    if (!currentShippingQuote || shippingLoading || !pricing.quote) {
+      setShippingError("Wait for shipping to be calculated before continuing.");
+      return;
     }
     const payment = await initializePayment({
       items: items.map(({ productId, quantity }) => ({ productId, quantity })),
       shippingAddress: form,
       couponCode,
       idempotencyKey: checkoutKey(),
-    })
-    if (payment?.checkoutUrl) window.location.assign(payment.checkoutUrl)
+      quoteId: pricing.quote.quoteId,
+    });
+    if (payment?.status === "success") {
+      window.location.assign("/account/orders?payment=success");
+      return;
+    }
+    if (payment?.checkoutUrl) window.location.assign(payment.checkoutUrl);
   }
+
+  if (syncError)
+    return (
+      <main className="p-12 text-center" role="alert">
+        {syncError}{" "}
+        <button onClick={() => void refreshCart()} className="underline">
+          Retry
+        </button>
+      </main>
+    );
+  if (!authReady)
+    return (
+      <div className="p-12 text-center" role="status">
+        Loading your cart...
+      </div>
+    );
 
   if (!items.length) {
     return (
@@ -230,15 +321,20 @@ export default function CheckoutPage() {
         <main className="flex flex-1 items-center justify-center px-4">
           <div className="max-w-md text-center">
             <h1 className="text-3xl font-bold">Your cart is empty</h1>
-            <p className="mt-3 text-muted-foreground">Add an item before starting checkout.</p>
-            <Link href="/shop" className="mt-6 inline-flex rounded-lg bg-primary px-5 py-3 font-semibold text-primary-foreground">
+            <p className="mt-3 text-muted-foreground">
+              Add an item before starting checkout.
+            </p>
+            <Link
+              href="/shop"
+              className="mt-6 inline-flex rounded-lg bg-primary px-5 py-3 font-semibold text-primary-foreground"
+            >
               Browse products
             </Link>
           </div>
         </main>
         <Footer />
       </div>
-    )
+    );
   }
 
   return (
@@ -249,17 +345,26 @@ export default function CheckoutPage() {
           <form onSubmit={submit} className="space-y-7">
             <div>
               <h1 className="text-3xl font-bold">Checkout</h1>
-              <p className="mt-2 text-sm text-muted-foreground">Payment will open on {paymentProviderName} after your order is validated.</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Payment will open on {paymentProviderName} after your order is
+                validated.
+              </p>
             </div>
 
             {error && (
-              <div role="alert" className="flex gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+              <div
+                role="alert"
+                className="flex gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800"
+              >
                 <AlertCircle className="size-5 shrink-0" />
                 <span>{error}</span>
               </div>
             )}
             {shippingError && (
-              <div role="alert" className="flex gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+              <div
+                role="alert"
+                className="flex gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800"
+              >
                 <AlertCircle className="size-5 shrink-0" />
                 <span>{shippingError}</span>
               </div>
@@ -267,10 +372,26 @@ export default function CheckoutPage() {
 
             <section className="rounded-2xl border border-border bg-card p-6">
               <h2 className="text-lg font-semibold">Contact and delivery</h2>
-              {accountEmail && <p className="mt-1 text-sm text-muted-foreground">Checkout account: {accountEmail}</p>}
+              {accountEmail && (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Checkout account: {accountEmail}
+                </p>
+              )}
               <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                <Field label="First name" name="firstName" value={form.firstName} onChange={update} autoComplete="given-name" />
-                <Field label="Last name" name="lastName" value={form.lastName} onChange={update} autoComplete="family-name" />
+                <Field
+                  label="First name"
+                  name="firstName"
+                  value={form.firstName}
+                  onChange={update}
+                  autoComplete="given-name"
+                />
+                <Field
+                  label="Last name"
+                  name="lastName"
+                  value={form.lastName}
+                  onChange={update}
+                  autoComplete="family-name"
+                />
               </div>
 
               <div className="mt-5 border-t border-border pt-5">
@@ -297,7 +418,9 @@ export default function CheckoutPage() {
                       </span>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <p className="font-semibold">{selectedAddress.label}</p>
+                          <p className="font-semibold">
+                            {selectedAddress.label}
+                          </p>
                           {selectedAddress.is_default && (
                             <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">
                               Default
@@ -305,9 +428,16 @@ export default function CheckoutPage() {
                           )}
                         </div>
                         <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                          {selectedAddress.recipient_name}<br />
-                          {selectedAddress.line1}{selectedAddress.line2 ? `, ${selectedAddress.line2}` : ""}<br />
-                          {selectedAddress.city}, {selectedAddress.state} {selectedAddress.postal_code}<br />
+                          {selectedAddress.recipient_name}
+                          <br />
+                          {selectedAddress.line1}
+                          {selectedAddress.line2
+                            ? `, ${selectedAddress.line2}`
+                            : ""}
+                          <br />
+                          {selectedAddress.city}, {selectedAddress.state}{" "}
+                          {selectedAddress.postal_code}
+                          <br />
                           {selectedAddress.country} · {selectedAddress.phone}
                         </p>
                       </div>
@@ -315,15 +445,57 @@ export default function CheckoutPage() {
                   </div>
                 ) : (
                   <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                    <Field label="Phone" name="phone" type="tel" value={form.phone} onChange={update} autoComplete="tel" />
-                    <Field label="Address" name="address" value={form.address} onChange={update} autoComplete="street-address" />
-                    <Field label="City" name="city" value={form.city} onChange={update} autoComplete="address-level2" />
-                    <SelectField label="State" name="state" value={form.state} onChange={update} autoComplete="address-level1">
+                    <Field
+                      label="Phone"
+                      name="phone"
+                      type="tel"
+                      value={form.phone}
+                      onChange={update}
+                      autoComplete="tel"
+                    />
+                    <Field
+                      label="Address"
+                      name="address"
+                      value={form.address}
+                      onChange={update}
+                      autoComplete="street-address"
+                    />
+                    <Field
+                      label="City"
+                      name="city"
+                      value={form.city}
+                      onChange={update}
+                      autoComplete="address-level2"
+                    />
+                    <SelectField
+                      label="State"
+                      name="state"
+                      value={form.state}
+                      onChange={update}
+                      autoComplete="address-level1"
+                    >
                       <option value="">Choose state</option>
-                      {NIGERIAN_STATES.map((state) => <option key={state} value={state}>{state}</option>)}
+                      {NIGERIAN_STATES.map((state) => (
+                        <option key={state} value={state}>
+                          {state}
+                        </option>
+                      ))}
                     </SelectField>
-                    <Field label="Postal code" name="zip" value={form.zip} onChange={update} autoComplete="postal-code" required={false} />
-                    <Field label="Country" name="country" value={form.country} onChange={update} autoComplete="country-name" />
+                    <Field
+                      label="Postal code"
+                      name="zip"
+                      value={form.zip}
+                      onChange={update}
+                      autoComplete="postal-code"
+                      required={false}
+                    />
+                    <Field
+                      label="Country"
+                      name="country"
+                      value={form.country}
+                      onChange={update}
+                      autoComplete="country-name"
+                    />
                   </div>
                 )}
 
@@ -342,12 +514,16 @@ export default function CheckoutPage() {
                       >
                         <MapPin className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
                         <span className="min-w-0 flex-1">
-                          <span className="block text-sm font-semibold">{address.label}</span>
+                          <span className="block text-sm font-semibold">
+                            {address.label}
+                          </span>
                           <span className="mt-1 block text-xs leading-5 text-muted-foreground">
                             {address.line1}, {address.city}, {address.state}
                           </span>
                         </span>
-                        {address.id === selectedAddressId && <Check className="size-4 text-primary" />}
+                        {address.id === selectedAddressId && (
+                          <Check className="size-4 text-primary" />
+                        )}
                       </button>
                     ))}
                     <button
@@ -361,18 +537,21 @@ export default function CheckoutPage() {
                   </div>
                 )}
 
-                {!addressesLoading && addressMode === "new" && savedAddresses.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (selectedAddress) selectSavedAddress(selectedAddress)
-                      else setAddressPickerOpen(true)
-                    }}
-                    className="mt-4 text-sm font-semibold text-primary hover:underline"
-                  >
-                    Use a saved address instead
-                  </button>
-                )}
+                {!addressesLoading &&
+                  addressMode === "new" &&
+                  savedAddresses.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (selectedAddress)
+                          selectSavedAddress(selectedAddress);
+                        else setAddressPickerOpen(true);
+                      }}
+                      className="mt-4 text-sm font-semibold text-primary hover:underline"
+                    >
+                      Use a saved address instead
+                    </button>
+                  )}
               </div>
             </section>
 
@@ -380,17 +559,32 @@ export default function CheckoutPage() {
               <div className="flex items-start gap-3">
                 <ShieldCheck className="mt-0.5 size-5 text-emerald-600" />
                 <div>
-                  <h2 className="font-semibold">Secure {paymentProviderName} payment</h2>
+                  <h2 className="font-semibold">
+                    Secure {paymentProviderName} payment
+                  </h2>
                   <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                    Your final total and stock availability are verified on the server before payment begins.
+                    Your final total and stock availability are verified on the
+                    server before payment begins.
                   </p>
                 </div>
               </div>
             </section>
 
-            <button disabled={isLoading || shippingLoading || !currentShippingQuote} className="flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-primary px-5 font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60">
+            <button
+              disabled={
+                isLoading ||
+                shippingLoading ||
+                !currentShippingQuote ||
+                !pricing.quote
+              }
+              className="flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-primary px-5 font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60"
+            >
               <Lock className="size-4" />
-              {isLoading ? "Preparing secure payment…" : shippingLoading ? "Calculating shipping…" : `Continue to ${paymentProviderName}`}
+              {isLoading
+                ? "Preparing secure payment…"
+                : shippingLoading
+                  ? "Calculating shipping…"
+                  : `Continue to ${paymentProviderName}`}
             </button>
           </form>
 
@@ -398,35 +592,85 @@ export default function CheckoutPage() {
             <h2 className="text-lg font-semibold">Order summary</h2>
             <div className="mt-5 space-y-4">
               {items.map((item) => (
-                <div key={item.productId} className="flex justify-between gap-4 text-sm">
-                  <span className="text-muted-foreground">{item.name} × {item.quantity}</span>
-                  <span>{money(item.price * item.quantity)}</span>
+                <div
+                  key={item.productId}
+                  className="flex justify-between gap-4 text-sm"
+                >
+                  <span className="text-muted-foreground">
+                    {item.name} × {item.quantity}
+                  </span>
+                  <span>
+                    {money(
+                      (pricing.quote?.lines.find(
+                        (line) => line.productId === item.productId,
+                      )?.unitPrice ?? item.price) * item.quantity,
+                    )}
+                  </span>
                 </div>
               ))}
-              <Summary label="Subtotal" value={money(total)} />
-              {discount > 0 && <Summary label={`Discount (${couponCode})`} value={`-${money(discount)}`} accent />}
+              <Summary
+                label="Subtotal"
+                value={money(pricing.quote?.subtotal ?? total)}
+              />
+              {pricing.quote?.tax && (
+                <Summary
+                  label={`${pricing.quote.tax.name} (${pricing.quote.tax.rate}%)`}
+                  value={money(pricing.quote.tax.amount)}
+                />
+              )}
+              {pricing.error && (
+                <p role="alert" className="text-sm text-red-700">
+                  {pricing.error}{" "}
+                  <button
+                    type="button"
+                    onClick={pricing.retry}
+                    className="underline"
+                  >
+                    Retry
+                  </button>
+                </p>
+              )}
+              {(pricing.quote?.discount ?? discount) > 0 && (
+                <Summary
+                  label={`Discount (${couponCode})`}
+                  value={`-${money(pricing.quote?.discount ?? discount)}`}
+                  accent
+                />
+              )}
               <Summary
                 label="Shipping"
                 value={
                   shippingLoading
                     ? "Calculating…"
                     : currentShippingQuote
-                      ? currentShippingQuote.fee === 0 ? "FREE" : money(currentShippingQuote.fee)
+                      ? pricing.quote?.shipping === 0
+                        ? "FREE"
+                        : pricing.quote?.shipping === null ||
+                            pricing.quote?.shipping === undefined
+                          ? "Calculating..."
+                          : money(pricing.quote.shipping)
                       : "Select an address"
                 }
-                accent={currentShippingQuote?.fee === 0}
+                accent={pricing.quote?.shipping === 0}
               />
               {currentShippingQuote && (
                 <p className="text-xs text-muted-foreground">
-                  {currentShippingQuote.zoneName} · Estimated {currentShippingQuote.estimatedDaysMin}–{currentShippingQuote.estimatedDaysMax} business days
+                  {currentShippingQuote.zoneName} · Estimated{" "}
+                  {currentShippingQuote.estimatedDaysMin}–
+                  {currentShippingQuote.estimatedDaysMax} business days
                 </p>
               )}
               <div className="flex justify-between border-t border-border pt-4 text-lg font-semibold">
                 <span>Estimated total</span>
-                <span>{money(discountedTotal + (currentShippingQuote?.fee ?? 0))}</span>
+                <span>
+                  {pricing.quote && currentShippingQuote
+                    ? money(pricing.quote.total)
+                    : "Calculating..."}
+                </span>
               </div>
               <p className="text-xs leading-5 text-muted-foreground">
-                Product availability, coupon eligibility and the final amount are recalculated securely before {paymentProviderName} opens.
+                Product availability, coupon eligibility and the final amount
+                are recalculated securely before {paymentProviderName} opens.
               </p>
             </div>
           </aside>
@@ -434,7 +678,7 @@ export default function CheckoutPage() {
       </main>
       <Footer />
     </div>
-  )
+  );
 }
 
 function Field({
@@ -445,9 +689,13 @@ function Field({
   return (
     <label className="block space-y-2 text-sm font-medium">
       <span>{label}</span>
-      <input {...props} required={required} className="h-11 w-full rounded-lg border border-input bg-background px-3 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20" />
+      <input
+        {...props}
+        required={required}
+        className="h-11 w-full rounded-lg border border-input bg-background px-3 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+      />
     </label>
-  )
+  );
 }
 
 function SelectField({
@@ -455,28 +703,45 @@ function SelectField({
   children,
   ...props
 }: React.SelectHTMLAttributes<HTMLSelectElement> & {
-  label: string
-  children: React.ReactNode
+  label: string;
+  children: React.ReactNode;
 }) {
   return (
     <label className="block space-y-2 text-sm font-medium">
       <span>{label}</span>
-      <select {...props} required className="h-11 w-full rounded-lg border border-input bg-background px-3 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20">
+      <select
+        {...props}
+        required
+        className="h-11 w-full rounded-lg border border-input bg-background px-3 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+      >
         {children}
       </select>
     </label>
-  )
+  );
 }
 
-function Summary({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) {
+function Summary({
+  label,
+  value,
+  accent = false,
+}: {
+  label: string;
+  value: string;
+  accent?: boolean;
+}) {
   return (
-    <div className={`flex justify-between text-sm ${accent ? "text-emerald-700" : "text-muted-foreground"}`}>
+    <div
+      className={`flex justify-between text-sm ${accent ? "text-emerald-700" : "text-muted-foreground"}`}
+    >
       <span>{label}</span>
       <span>{value}</span>
     </div>
-  )
+  );
 }
 
 function money(value: number) {
-  return new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN" }).format(value)
+  return new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: "NGN",
+  }).format(value);
 }

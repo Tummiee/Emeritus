@@ -12,6 +12,10 @@ __v0_jsx-dev-runtime.ts
 # Common ignores
 node_modules
 .next/
+.next-e2e/
+.next-production-check/
+playwright-report/
+test-results/
 .DS_Store.env
 .env
 .env

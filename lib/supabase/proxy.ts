@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { safeNextPath } from "@/lib/auth/helpers";
 
 const protectedPrefixes = [
   "/account",
@@ -8,10 +9,6 @@ const protectedPrefixes = [
   "/payment/callback",
 ];
 const authPrefixes = ["/auth/login", "/auth/register"];
-
-function safeNext(value: string | null) {
-  return value?.startsWith("/") && !value.startsWith("//") ? value : "/account";
-}
 
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -42,12 +39,23 @@ export async function updateSession(request: NextRequest) {
     const login = request.nextUrl.clone();
     login.pathname = "/auth/login";
     login.search = `?next=${encodeURIComponent(path + request.nextUrl.search)}`;
-    return NextResponse.redirect(login);
+    const redirected = NextResponse.redirect(login);
+    response.cookies
+      .getAll()
+      .forEach((cookie) => redirected.cookies.set(cookie));
+    return redirected;
   }
   if (user && authPrefixes.includes(path)) {
-    return NextResponse.redirect(
-      new URL(safeNext(request.nextUrl.searchParams.get("next")), request.url),
+    const redirected = NextResponse.redirect(
+      new URL(
+        safeNextPath(request.nextUrl.searchParams.get("next")),
+        request.url,
+      ),
     );
+    response.cookies
+      .getAll()
+      .forEach((cookie) => redirected.cookies.set(cookie));
+    return redirected;
   }
   return response;
 }

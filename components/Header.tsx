@@ -12,11 +12,11 @@ import {
 } from "lucide-react";
 import { useCart } from "@/lib/contexts/CartContext";
 import { useWishlist } from "@/lib/contexts/WishlistContext";
-import Image from "next/image";
+import Image from "@/components/SafeImage";
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { itemCount } = useCart();
+  const { distinctItemCount } = useCart();
   const { items: wishlistItems } = useWishlist();
 
   return (
@@ -141,9 +141,9 @@ export default function Header() {
             className="relative grid size-10 place-items-center rounded-xl border border-border bg-card text-foreground/70 shadow-xs hover:-translate-y-0.5 hover:border-primary/30 hover:text-primary hover:shadow-md"
           >
             <ShoppingCart className="h-4 w-4" />
-            {itemCount > 0 && (
+            {distinctItemCount > 0 && (
               <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-purple-700 text-[10px] font-semibold text-white">
-                {itemCount}
+                {distinctItemCount}
               </span>
             )}
           </Link>

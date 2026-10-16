@@ -7,11 +7,13 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   try {
     const supabase = createAdminClient();
-    const { error } = await supabase
-      .from("categories")
-      .select("id", { count: "exact", head: true });
-
-    if (error) throw error;
+    const checks = await Promise.all([
+      supabase.from("storefront_catalog").select("id").limit(1),
+      supabase.from("email_outbox").select("id").limit(1),
+      supabase.from("payment_reconciliation").select("reference").limit(1),
+    ]);
+    if (checks.some((result) => result.error))
+      throw new Error("Schema unavailable");
 
     return NextResponse.json(
       { status: "ready", dependencies: { database: "ok" } },

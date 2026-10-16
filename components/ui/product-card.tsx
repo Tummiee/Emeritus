@@ -1,4 +1,4 @@
-import Image, { type ImageProps } from "next/image"
+import Image, { type ImageProps } from "@/components/SafeImage"
 import * as React from "react"
 import { Heart, Star } from "lucide-react"
 

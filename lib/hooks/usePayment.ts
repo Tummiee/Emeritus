@@ -1,5 +1,6 @@
 "use client";
 
+import { resetCheckoutKey } from "@/lib/checkout-key";
 import { useState } from "react";
 
 interface InitializePaymentParams {
@@ -16,10 +17,12 @@ interface InitializePaymentParams {
   };
   couponCode?: string | null;
   idempotencyKey: string;
+  quoteId: string;
 }
 
 interface PaymentResponse {
-  checkoutUrl: string;
+  status?: string;
+  checkoutUrl?: string;
   paymentReference: string;
   transactionReference: string;
   provider: "paystack" | "monnify";
@@ -49,14 +52,15 @@ export function usePayment() {
           body: JSON.stringify(input),
         });
 
-      let response = await request(params);
-      let data = await response.json();
+      const response = await request(params);
+      const data = await response.json();
 
       if (response.status === 409 && data.resetIdempotency) {
-        const idempotencyKey = crypto.randomUUID();
-        sessionStorage.setItem("emeritus-checkout-idempotency", idempotencyKey);
-        response = await request({ ...params, idempotencyKey });
-        data = await response.json();
+        resetCheckoutKey();
+        throw new Error(
+          data.error ||
+            "Checkout changed. Review your total and continue again.",
+        );
       }
 
       if (!response.ok) {
@@ -120,6 +124,5 @@ export function usePayment() {
     success,
     initializePayment,
     verifyPayment,
-
   };
 }

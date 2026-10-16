@@ -17,6 +17,9 @@ export type ProductRow = {
     | { quantity: number; reserved: number }
     | { quantity: number; reserved: number }[]
     | null;
+  rating?: number | string;
+  review_count?: number | string;
+  brand_slug?: string;
   product_reviews?: { rating: number }[];
 };
 
@@ -35,14 +38,18 @@ export function toStorefrontProduct(row: ProductRow) {
     price: Number(row.price),
     comparePrice:
       row.compare_at_price == null ? undefined : Number(row.compare_at_price),
-    image: row.image_url || "/placeholder.jpg",
+    image: row.image_url || "/product-placeholder.svg",
     category: first(row.categories)?.name ?? "Uncategorized",
     categorySlug: first(row.categories)?.slug ?? "uncategorized",
     brand: first(row.brands)?.name ?? "Unbranded",
-    rating: ratings.length
-      ? ratings.reduce((sum, item) => sum + item.rating, 0) / ratings.length
-      : 0,
-    reviews: ratings.length,
+    brandSlug: row.brand_slug ?? "",
+    rating:
+      row.rating !== undefined
+        ? Number(row.rating)
+        : ratings.length
+          ? ratings.reduce((sum, item) => sum + item.rating, 0) / ratings.length
+          : 0,
+    reviews: Number(row.review_count ?? ratings.length),
     inStock: Boolean(inventory && inventory.quantity - inventory.reserved > 0),
     featured: row.featured,
     createdAt: row.created_at,
@@ -50,4 +57,4 @@ export function toStorefrontProduct(row: ProductRow) {
 }
 
 export const productSelect =
-  "id,slug,name,description,image_url,price,compare_at_price,featured,created_at,categories(id,slug,name),brands(name),inventory(quantity,reserved),product_reviews(rating)";
+  "id,slug,name,description,image_url,price,compare_at_price,featured,created_at,categories,brands,inventory,rating,review_count,brand_slug";

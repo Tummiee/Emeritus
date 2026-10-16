@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import Image from "@/components/SafeImage";
 import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
 import { motion, useReducedMotion } from "framer-motion";
@@ -460,7 +460,7 @@ function ProductGrid({ products }: { products: HomepageProduct[] }) {
                     disabled={product.availability === "out-of-stock"}
                     aria-label={`Add ${product.name} to cart`}
                     onClick={() => {
-                      addToCart(product.slug, 1);
+                      addToCart(product.id, 1);
                       announce(`${product.name} added to your cart.`);
                     }}
                   >
@@ -553,7 +553,7 @@ export function Homepage({ content }: { content: HomepageContent }) {
               name: category.name,
               slug: category.slug,
               image: {
-                url: category.image_url || "/placeholder.jpg",
+                url: category.image_url || "/product-placeholder.svg",
                 alt: category.name,
               },
               count: formatCategoryCount(

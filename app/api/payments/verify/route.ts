@@ -1,110 +1,37 @@
-import { NextRequest, NextResponse } from "next/server"
-import { z } from "zod"
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { createClient } from "@/lib/supabase/server";
+import { confirmPayment } from "@/lib/payments/service";
+import { HttpError, httpError, readJson, rateLimit } from "@/lib/http";
 
-import { amountsMatch, MonnifyError, verifyMonnifyTransaction } from "@/lib/payments/monnify"
-import { PaystackError, verifyPaystackTransaction } from "@/lib/payments/paystack"
-import { paystackAmountsMatch } from "@/lib/payments/paystack-utils"
-import { sendOrderEmailsIfPending } from "@/lib/sendEmail"
-import { createAdminClient } from "@/lib/supabase/admin"
-import { createClient } from "@/lib/supabase/server"
-
-const schema = z.object({ reference: z.string().trim().min(3).max(160) })
-
-export async function POST(request: NextRequest) {
-  const parsed = schema.safeParse(await request.json().catch(() => null))
-  if (!parsed.success) return NextResponse.json({ error: "Payment reference is required" }, { status: 400 })
-
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-
-  const { data: attempt } = await supabase
-    .from("payment_attempts")
-    .select("order_id,amount,currency,status,provider,provider_transaction_reference")
-    .eq("reference", parsed.data.reference)
-    .eq("user_id", user.id)
-    .maybeSingle()
-
-  if (!attempt) return NextResponse.json({ error: "Payment not found" }, { status: 404 })
-  if (attempt.status === "successful") {
-    await sendOrderEmailsIfPending(attempt.order_id, createAdminClient())
-    return NextResponse.json({ success: true, data: { status: "success", orderId: attempt.order_id, provider: attempt.provider } })
-  }
-  if (attempt.status === "failed") {
-    return NextResponse.json({ error: "Payment was not successful", data: { status: "failed", provider: attempt.provider } }, { status: 400 })
-  }
-
-  if (attempt.provider === "paystack") {
-    try {
-      const transaction = await verifyPaystackTransaction(parsed.data.reference)
-      if (transaction.status === "pending" || transaction.status === "ongoing" || transaction.status === "processing") {
-        return NextResponse.json({ error: "Payment is still pending", data: { status: "pending", provider: "paystack" } }, { status: 202 })
-      }
-      if (transaction.status !== "success") {
-        return NextResponse.json({ error: "Payment was not successful", data: { status: "failed", provider: "paystack" } }, { status: 400 })
-      }
-
-      const valid = transaction.reference === parsed.data.reference
-        && transaction.currency === String(attempt.currency).toUpperCase()
-        && paystackAmountsMatch(transaction.amount, Number(attempt.amount))
-      if (!valid) return NextResponse.json({ error: "Payment details did not pass verification" }, { status: 422 })
-
-      const admin = createAdminClient()
-      const { error } = await admin.rpc("settle_payment", {
-        p_reference: parsed.data.reference,
-        p_success: true,
-        p_provider_response: transaction.raw,
-      })
-      if (error) return NextResponse.json({ error: "Could not finalize payment" }, { status: 500 })
-
-      await admin.from("payment_attempts").update({
-        payment_method: transaction.channel ?? null,
-        paid_at: transaction.paidAt ?? new Date().toISOString(),
-      }).eq("reference", parsed.data.reference)
-      await sendOrderEmailsIfPending(attempt.order_id, admin)
-      return NextResponse.json({ success: true, data: { status: "success", orderId: attempt.order_id, provider: "paystack" } })
-    } catch (caught) {
-      const error = caught instanceof PaystackError ? caught : new PaystackError("Payment confirmation is temporarily unavailable")
-      return NextResponse.json({ error: error.message, data: { status: "pending", provider: "paystack" } }, { status: error.status })
-    }
-  }
-
-  if (attempt.provider !== "monnify") {
-    return NextResponse.json({ error: "Unsupported payment provider" }, { status: 409 })
-  }
-
+export async function POST(request: Request) {
   try {
-    const transaction = await verifyMonnifyTransaction(parsed.data.reference)
-    if (transaction.paymentStatus === "PENDING") {
-      return NextResponse.json({ error: "Payment is still pending", data: { status: "pending", provider: "monnify" } }, { status: 202 })
-    }
-    if (transaction.paymentStatus !== "PAID") {
-      return NextResponse.json({ error: "Payment was not successful", data: { status: "failed", provider: "monnify" } }, { status: 400 })
-    }
-
-    const valid = transaction.paymentReference === parsed.data.reference
-      && Boolean(attempt.provider_transaction_reference)
-      && transaction.transactionReference === attempt.provider_transaction_reference
-      && transaction.currency === String(attempt.currency).toUpperCase()
-      && amountsMatch(transaction.amountPaid, Number(attempt.amount))
-    if (!valid) return NextResponse.json({ error: "Payment details did not pass verification" }, { status: 422 })
-
-    const admin = createAdminClient()
-    const { error } = await admin.rpc("settle_payment", {
-      p_reference: parsed.data.reference,
-      p_success: true,
-      p_provider_response: transaction.raw,
-    })
-    if (error) return NextResponse.json({ error: "Could not finalize payment" }, { status: 500 })
-
-    await admin.from("payment_attempts").update({
-      payment_method: transaction.paymentMethod ?? null,
-      paid_at: transaction.paidOn ?? new Date().toISOString(),
-    }).eq("reference", parsed.data.reference)
-    await sendOrderEmailsIfPending(attempt.order_id, admin)
-    return NextResponse.json({ success: true, data: { status: "success", orderId: attempt.order_id, provider: "monnify" } })
-  } catch (caught) {
-    const error = caught instanceof MonnifyError ? caught : new MonnifyError("Payment confirmation is temporarily unavailable")
-    return NextResponse.json({ error: error.message, data: { status: "pending", provider: "monnify" } }, { status: error.status })
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new HttpError("Unauthorized", 401);
+    await rateLimit(request, "payment-verify", 30, user.id);
+    const parsed = z
+      .object({ reference: z.string().trim().min(3).max(160) })
+      .safeParse(await readJson(request));
+    if (!parsed.success) throw new HttpError("Payment reference required");
+    const data = await confirmPayment(parsed.data.reference, user.id);
+    return NextResponse.json(
+      { success: data.status === "success", data },
+      {
+        status:
+          data.status === "pending"
+            ? 202
+            : data.status === "needs_reconciliation"
+              ? 409
+              : data.status === "failed"
+                ? 400
+                : 200,
+        headers: { "Cache-Control": "no-store" },
+      },
+    );
+  } catch (error) {
+    return httpError(error);
   }
 }

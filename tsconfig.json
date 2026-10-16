@@ -38,6 +38,8 @@
   "exclude": [
     "node_modules",
     "Users",
-    "emeritus-gadget-website"
+    "emeritus-gadget-website",
+    ".next-e2e",
+    ".next-production-check"
   ]
 }

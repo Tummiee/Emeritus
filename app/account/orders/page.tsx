@@ -1,49 +1,58 @@
-import Link from "next/link"
-import Image from "next/image"
-import { Package, Star } from "lucide-react"
-import { requireUser } from "@/lib/auth/session"
-import { createClient } from "@/lib/supabase/server"
-import { RetryPaymentButton } from "@/components/payments/RetryPaymentButton"
+import Link from "next/link";
+import { PageNavigation } from "@/components/PageNavigation";
+import { pageNumber } from "@/lib/pagination";
+import Image from "@/components/SafeImage";
+import { Package, Star } from "lucide-react";
+import { requireUser } from "@/lib/auth/session";
+import { createClient } from "@/lib/supabase/server";
+import { RetryPaymentButton } from "@/components/payments/RetryPaymentButton";
 
-export default async function OrdersPage() {
-  const user = await requireUser()
-  const supabase = await createClient()
+export default async function OrdersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
+  const page = pageNumber((await searchParams).page);
+  const user = await requireUser();
+  const supabase = await createClient();
 
-   // 1. Fetch orders
+  // 1. Fetch orders
   const { data: orders } = await supabase
     .from("orders")
     .select("id,order_number,status,total,currency,created_at")
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
+    .range((page - 1) * 25, page * 25 - 1);
 
   // 2. Fetch order items for all orders in one query
-  const orderIds = orders?.map((o) => o.id) ?? []
+  const orderIds = orders?.map((o) => o.id) ?? [];
   const { data: allItems } = orderIds.length
     ? await supabase
         .from("order_items")
         .select("id,order_id,product_id,name,quantity")
         .in("order_id", orderIds)
-    : { data: [] }
+    : { data: [] };
 
   // 3. Fetch product thumbnails for those product IDs
   const productIds = [
     ...new Set((allItems ?? []).map((i) => i.product_id).filter(Boolean)),
-  ]
+  ];
   const { data: products } = productIds.length
     ? await supabase
         .from("products")
         .select("id,image_url,slug")
         .in("id", productIds)
-    : { data: [] }
+    : { data: [] };
 
-  const productMap = Object.fromEntries(
-    (products ?? []).map((p) => [p.id, p])
-  )
-  const itemsByOrder = (allItems ?? []).reduce<Record<string, any[]>>((acc, item) => {
-    if (!acc[item.order_id]) acc[item.order_id] = []
-    acc[item.order_id]!.push(item)
-    return acc
-  }, {})
+  const productMap = Object.fromEntries((products ?? []).map((p) => [p.id, p]));
+  const itemsByOrder = (allItems ?? []).reduce<Record<string, any[]>>(
+    (acc, item) => {
+      if (!acc[item.order_id]) acc[item.order_id] = [];
+      acc[item.order_id]!.push(item);
+      return acc;
+    },
+    {},
+  );
 
   return (
     <div className="min-w-0">
@@ -57,24 +66,23 @@ export default async function OrdersPage() {
       ) : (
         <div className="flex flex-col gap-4">
           {orders.map((order) => {
-            const isDelivered = order.status === "delivered"
-            const items = itemsByOrder[order.id] ?? []
+            const isDelivered = order.status === "delivered";
+            const items = itemsByOrder[order.id] ?? [];
 
             return (
               <div
                 key={order.id}
                 className="overflow-hidden rounded-2xl border border-border bg-card"
               >
-               
-
                 {/* ── Order items ───────────────────────────────────── */}
                 {items.length > 0 && (
                   <ul className="divide-y divide-border">
                     {items.map((item) => {
-                      const product = productMap[item.product_id]
-                      const productId: string = product?.id ?? item.product_id
-                      const imageUrl: string | null = product?.image_url ?? null
-                      const productHref = `/product/${productId}`
+                      const product = productMap[item.product_id];
+                      const productId: string = product?.id ?? item.product_id;
+                      const imageUrl: string | null =
+                        product?.image_url ?? null;
+                      const productHref = `/product/${productId}`;
 
                       return (
                         <li
@@ -125,15 +133,17 @@ export default async function OrdersPage() {
                             </Link>
                           )}
                         </li>
-                      )
+                      );
                     })}
                   </ul>
                 )}
 
-                 {/* ── Order details ─────────────────────────────────── */}
+                {/* ── Order details ─────────────────────────────────── */}
                 <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-4 py-3">
                   <div className="min-w-0">
-                    <p className="truncate font-semibold">{order.order_number}</p>
+                    <p className="truncate font-semibold">
+                      {order.order_number}
+                    </p>
                     <p className="text-xs text-muted-foreground">
                       {new Date(order.created_at).toLocaleDateString("en-NG", {
                         day: "numeric",
@@ -159,31 +169,43 @@ export default async function OrdersPage() {
                   </div>
                 </div>
               </div>
-            )
+            );
           })}
         </div>
       )}
+      <PageNavigation
+        page={page}
+        hasNext={orders?.length === 25}
+        path="/account/orders"
+      />
     </div>
-  )
+  );
 }
 
 /* ── Status badge ──────────────────────────────────────────────────── */
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
-    pending:    "bg-yellow-100 text-yellow-700 dark:bg-yellow-950/40 dark:text-yellow-400",
-    confirmed:  "bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400",
-    processing: "bg-indigo-100 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-400",
-    shipped:    "bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-400",
-    delivered:  "bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400",
-    cancelled:  "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400",
-    refunded:   "bg-muted text-muted-foreground",
-  }
-  const cls = map[status] ?? "bg-muted text-muted-foreground"
+    pending:
+      "bg-yellow-100 text-yellow-700 dark:bg-yellow-950/40 dark:text-yellow-400",
+    confirmed:
+      "bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400",
+    processing:
+      "bg-indigo-100 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-400",
+    shipped:
+      "bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-400",
+    delivered:
+      "bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400",
+    cancelled: "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400",
+    refunded: "bg-muted text-muted-foreground",
+  };
+  const cls = map[status] ?? "bg-muted text-muted-foreground";
   return (
-    <span className={`inline-block rounded-full px-3 py-1 text-xs font-medium capitalize ${cls}`}>
+    <span
+      className={`inline-block rounded-full px-3 py-1 text-xs font-medium capitalize ${cls}`}
+    >
       {status}
     </span>
-  )
+  );
 }
 
 /* ── Empty state ────────────────────────────────────────────────────── */
@@ -196,5 +218,5 @@ function Empty() {
         Start shopping
       </Link>
     </div>
-  )
+  );
 }

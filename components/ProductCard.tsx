@@ -1,7 +1,7 @@
 "use client";
 
-import React from "react";
-import Image from "next/image";
+import React, { useState } from "react";
+import Image from "@/components/SafeImage";
 import Link from "next/link";
 import { Star, Heart, ShoppingCart } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -54,20 +54,21 @@ export default function ProductCard({
   const { addItem: addToCart } = useCart();
   const wishlisted = isWishlisted(id);
   const normalizedImage = normalizeImage(image);
+  const [failedSource, setFailedSource] = useState<string | null>(null);
   const resolvedAvailability =
     availability ?? (inStock === false ? "out-of-stock" : "in-stock");
 
   const formattedPrice = new Intl.NumberFormat("en-NG", {
     style: "currency",
     currency: "NGN",
-    maximumFractionDigits: 0,
+    maximumFractionDigits: 2,
   }).format(price);
 
   const formattedCompareAtPrice = comparePrice
     ? new Intl.NumberFormat("en-NG", {
         style: "currency",
         currency: "NGN",
-        maximumFractionDigits: 0,
+        maximumFractionDigits: 2,
       }).format(comparePrice)
     : undefined;
 
@@ -75,15 +76,16 @@ export default function ProductCard({
     <Card className="group relative overflow-hidden rounded-2xl border border-border bg-card p-4 transition-shadow hover:shadow-lg">
       <div className="relative aspect-[4/5] overflow-hidden rounded-xl border border-border bg-muted">
         <Image
-          src={normalizedImage.url || "/product-placeholder.svg"}
+          src={
+            failedSource === normalizedImage.url
+              ? "/product-placeholder.svg"
+              : normalizedImage.url || "/product-placeholder.svg"
+          }
           alt={normalizedImage.alt || name}
           fill
           sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
           className="object-cover transition-transform duration-500 ease-[cubic-bezier(.77,0,.18,1)] group-hover:scale-105"
-          onError={(event) => {
-            const target = event.target as HTMLImageElement;
-            target.src = "/product-placeholder.svg";
-          }}
+          onError={() => setFailedSource(normalizedImage.url)}
         />
 
         <div className="absolute right-3 top-3 flex gap-2">
@@ -115,7 +117,7 @@ export default function ProductCard({
             <button
               type="button"
               disabled={resolvedAvailability === "out-of-stock"}
-              onClick={() => void addToCart(slug ?? id, 1)}
+              onClick={() => void addToCart(id, 1)}
               aria-label={`Add ${name} to cart`}
               className="rounded-full border border-white/70 bg-white p-2 text-primary shadow-lg transition-colors hover:bg-primary hover:text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white disabled:cursor-not-allowed disabled:opacity-50"
             >

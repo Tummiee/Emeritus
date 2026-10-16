@@ -1,4 +1,4 @@
-import Image from "next/image"
+import Image from "@/components/SafeImage"
 import { deleteMedia, uploadMedia } from "@/lib/admin/operations"
 import { createClient } from "@/lib/supabase/server"
 

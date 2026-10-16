@@ -47,7 +47,7 @@ A full-stack Next.js 16 ecommerce platform for selling premium gadgets and techn
 1. **Install dependencies**
 
    ```bash
-   pnpm install
+   npm ci
    ```
 
 2. **Set up environment variables**
@@ -73,18 +73,15 @@ A full-stack Next.js 16 ecommerce platform for selling premium gadgets and techn
 
 3. **Apply the Supabase migrations**
 
-   Run every SQL file in `supabase/migrations` in filename order. Existing
-   projects that already ran migrations `001` through `005` must also run
-   `202607010006_checkout_payments_tracking.sql`,
-   `202607020001_storefront_interactions.sql`, and
-   `202607030001_paystack_hardening.sql`, and
-   `202607210001_monnify_payments.sql`, and
-   `202608010001_payment_provider_switch.sql`.
+   Use the explicit ordered manifest in `supabase/migration-manifest.json`.
+   Generate the clean-install SQL for review with `node scripts/render-migrations.mjs`.
+   For an existing installation, follow [the commerce rollout instructions](docs/COMMERCE_ROLLOUT.md).
+   Maintenance/reset SQL under `supabase/scripts` must never run as migrations.
 
 4. **Run the development server**
 
    ```bash
-   pnpm dev
+   npm run dev
    ```
 
    Open [http://localhost:3000](http://localhost:3000) to view the application.

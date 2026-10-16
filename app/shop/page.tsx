@@ -1,13 +1,7 @@
 "use client";
 
-import React, {
-  useDeferredValue,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import { usePathname, useRouter } from "next/navigation";
+import React, { Suspense, useEffect, useRef, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ProductCard from "@/components/ProductCard";
@@ -28,245 +22,108 @@ type ShopCategory = {
 
 const PRODUCTS_PER_PAGE = 12;
 
-export default function ShopPage() {
+function ShopPageContent() {
   const router = useRouter();
   const pathname = usePathname();
+  const params = useSearchParams();
   const [products, setProducts] = useState<any[]>([]);
-  const [shopCategories, setShopCategories] = useState<ShopCategory[]>([]);
-  const [catalogMaxPrice, setCatalogMaxPrice] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [selectedIntent, setSelectedIntent] = useState<CatalogIntent | null>(
-    null,
-  );
-  const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
-  const [selectedMaxPrice, setSelectedMaxPrice] = useState<number | null>(null);
-  const [sortBy, setSortBy] = useState("newest");
-  const [searchQuery, setSearchQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
-  const [filtersReady, setFiltersReady] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const initialQueryApplied = useRef(false);
+  const [categories, setCategories] = useState<ShopCategory[]>([]);
+  const [brands, setBrands] = useState<Array<{ name: string; slug: string }>>(
+    [],
+  );
+  const [catalogMaxPrice, setCatalogMaxPrice] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
   const productsSectionRef = useRef<HTMLDivElement>(null);
+  const selectedCategory = params.get("category");
+  const selectedBrand = params.get("brand");
+  const selectedIntent = isCatalogIntent(params.get("intent"))
+    ? (params.get("intent") as CatalogIntent)
+    : null;
+  const selectedMaxPrice = params.has("maxPrice")
+    ? Number(params.get("maxPrice"))
+    : null;
+  const sortBy = params.get("sortBy") || "newest";
+  const searchQuery = params.get("q") || "";
+  const deferredSearchQuery = searchQuery;
+  const currentPage = Math.max(1, Number(params.get("page")) || 1);
+  function setFilter(key: string, value: string | null) {
+    const next = new URLSearchParams(params.toString());
+    if (value) next.set(key, value);
+    else next.delete(key);
+    if (key !== "page") next.delete("page");
+    if (key === "category") next.delete("intent");
+    window.history.pushState(
+      null,
+      "",
+      pathname + (next.size ? "?" + next.toString() : ""),
+    );
+  }
+  const setSelectedCategory = (value: string | null) =>
+    setFilter("category", value);
+  const setSelectedBrand = (value: string | null) => setFilter("brand", value);
+  const setSelectedMaxPrice = (value: number | null) =>
+    setFilter("maxPrice", value === null ? null : String(value));
+  const setSortBy = (value: string) => setFilter("sortBy", value);
+  const setSearchQuery = (value: string) => setFilter("q", value);
+  const setCurrentPage = (value: number) =>
+    setFilter("page", value > 1 ? String(value) : null);
+  const normalize = (value: string) => normalizeCatalogText(value);
+  const query = params.toString();
   useEffect(() => {
     const controller = new AbortController();
-    const query = new URLSearchParams(window.location.search);
-    const requestedIntent = query.get("intent");
-    setSelectedIntent(
-      isCatalogIntent(requestedIntent) ? requestedIntent : null,
-    );
-    const requestedCategory = query.get("category");
-    setSelectedCategory(
-      requestedCategory ? normalizeCatalogText(requestedCategory) : null,
-    );
-    setSelectedBrand(query.get("brand"));
-    const requestedMaxPrice = Number(query.get("maxPrice"));
-    setSelectedMaxPrice(
-      Number.isFinite(requestedMaxPrice) && requestedMaxPrice > 0
-        ? requestedMaxPrice
-        : null,
-    );
-    setSortBy(query.get("sortBy") || "newest");
-    setSearchQuery(query.get("q") || "");
-    const requestedPage = Number(query.get("page"));
-    setCurrentPage(
-      Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1,
-    );
-    initialQueryApplied.current = true;
-    setFiltersReady(true);
-    fetch("/api/products", { cache: "no-store", signal: controller.signal })
-      .then(async (response) => {
-        const result = await response.json();
-        if (!response.ok)
-          throw new Error(result.error || "Could not load products");
-        const nextProducts = result.data ?? [];
-        const highestPrice = Math.max(
-          0,
-          ...nextProducts.map((product: any) => Number(product.price) || 0),
-        );
-        const roundedMaximum =
-          highestPrice > 0 ? Math.ceil(highestPrice / 10000) * 10000 : 0;
-        setProducts(nextProducts);
-        setCatalogMaxPrice(roundedMaximum);
-        setSelectedMaxPrice(null);
-        setLoadError("");
-      })
-      .catch((error) => {
-        if (error instanceof DOMException && error.name === "AbortError")
-          return;
-        setLoadError(
-          error instanceof Error ? error.message : "Could not load products",
-        );
-      })
-      .finally(() => setIsLoading(false));
-    return () => controller.abort();
-  }, []);
-
-  useEffect(() => {
-    let isMounted = true;
-    fetch("/api/categories", { cache: "no-store" })
-      .then(async (response) => {
-        const result = await response.json();
-        if (!response.ok)
-          throw new Error(result.error || "Could not load categories");
-        if (isMounted) {
-          setShopCategories(
-            (result.data ?? []).map((category: any) => ({
-              id: category.id,
-              name: category.name,
-              slug: category.slug,
-            })),
+    setIsLoading(true);
+    const queryParams = new URLSearchParams(query);
+    queryParams.set("limit", String(PRODUCTS_PER_PAGE));
+    const timer = setTimeout(() => {
+      void fetch("/api/products?" + queryParams, { signal: controller.signal })
+        .then(async (response) => {
+          const payload = await response.json();
+          if (!response.ok)
+            throw new Error(payload.error || "Catalog unavailable");
+          if (controller.signal.aborted) return;
+          if (payload.totalPages && currentPage > payload.totalPages) {
+            const corrected = new URLSearchParams(query);
+            corrected.set("page", String(payload.totalPages));
+            window.history.replaceState(
+              null,
+              "",
+              pathname + "?" + corrected.toString(),
+            );
+            return;
+          }
+          setProducts(payload.data);
+          setTotalCount(payload.count);
+          setCategories(payload.facets.categories);
+          setBrands(payload.facets.brands);
+          setCatalogMaxPrice(
+            Math.ceil(Number(payload.facets.maxPrice) / 10000) * 10000,
           );
-        }
-      })
-      .catch(() => {
-        if (isMounted) setShopCategories([]);
-      });
-
+          setLoadError("");
+        })
+        .catch((error) => {
+          if (!controller.signal.aborted)
+            setLoadError(
+              error instanceof Error ? error.message : "Catalog unavailable",
+            );
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) setIsLoading(false);
+        });
+    }, 200);
     return () => {
-      isMounted = false;
+      clearTimeout(timer);
+      controller.abort();
     };
-  }, []);
-
-  const categories = useMemo(() => shopCategories, [shopCategories]);
-  const deferredSearchQuery = useDeferredValue(searchQuery);
-  const brands = useMemo(
-    () =>
-      Array.from(new Set(products.map((product) => product.brand))).map(
-        (name) => ({ name }),
-      ),
-    [products],
-  );
-  const normalize = (value: string) =>
-    value
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)/g, "");
-
-  useEffect(() => {
-    if (!filtersReady || !initialQueryApplied.current) return;
-    const params = new URLSearchParams();
-    if (selectedIntent) params.set("intent", selectedIntent);
-    if (selectedCategory) params.set("category", normalize(selectedCategory));
-    if (selectedBrand) params.set("brand", normalize(selectedBrand));
-    if (
-      selectedMaxPrice !== null &&
-      catalogMaxPrice > 0 &&
-      selectedMaxPrice < catalogMaxPrice
-    )
-      params.set("maxPrice", String(selectedMaxPrice));
-    if (sortBy !== "newest") params.set("sortBy", sortBy);
-    if (deferredSearchQuery.trim()) params.set("q", deferredSearchQuery.trim());
-    if (currentPage > 1) params.set("page", String(currentPage));
-    const query = params.toString();
-    router.replace(query ? `${pathname}?${query}` : pathname, {
-      scroll: false,
-    });
-  }, [
-    selectedCategory,
-    selectedIntent,
-    selectedBrand,
-    selectedMaxPrice,
-    sortBy,
-    catalogMaxPrice,
-    pathname,
-    router,
-    filtersReady,
-    deferredSearchQuery,
-    currentPage,
-  ]);
-
-  const filteredProducts = useMemo(() => {
-    const normalizedSearch = normalizeCatalogText(deferredSearchQuery);
-    const intentHasCategories = selectedIntent
-      ? products.some((product) =>
-          categoryMatchesIntent(product.category, selectedIntent),
-        )
-      : false;
-    const candidates = products.filter((product) => {
-      if (normalizedSearch) {
-        const searchableText = normalizeCatalogText(
-          [
-            product.name,
-            product.description,
-            product.brand,
-            product.category,
-          ]
-            .filter(Boolean)
-            .join(" "),
-        );
-        if (!searchableText.includes(normalizedSearch)) return false;
-      }
-      if (
-        selectedCategory &&
-        normalizeCatalogText(product.categorySlug ?? product.category) !==
-          normalizeCatalogText(selectedCategory)
-      )
-        return false;
-      if (
-        selectedIntent &&
-        intentHasCategories &&
-        !categoryMatchesIntent(product.category, selectedIntent)
-      )
-        return false;
-      if (selectedBrand && product.brand !== selectedBrand) return false;
-      if (selectedMaxPrice !== null && product.price > selectedMaxPrice)
-        return false;
-      return true;
-    });
-    if (selectedIntent === "new-arrivals" && !intentHasCategories) {
-      return [...candidates]
-        .sort(
-          (a, b) =>
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-        )
-        .slice(0, 12);
-    }
-    return candidates;
-  }, [
-    products,
-    selectedCategory,
-    selectedIntent,
-    selectedBrand,
-    selectedMaxPrice,
-    deferredSearchQuery,
-  ]);
-
-  const sortedProducts = useMemo(() => {
-    const sorted = [...filteredProducts];
-    switch (sortBy) {
-      case "price-asc":
-        return sorted.sort((a, b) => a.price - b.price);
-      case "price-desc":
-        return sorted.sort((a, b) => b.price - a.price);
-      case "popular":
-        return sorted.sort((a, b) => b.reviews - a.reviews);
-      case "rating":
-        return sorted.sort((a, b) => b.rating - a.rating);
-      default:
-        return sorted;
-    }
-  }, [filteredProducts, sortBy]);
-
-  const totalPages = Math.max(
-    1,
-    Math.ceil(sortedProducts.length / PRODUCTS_PER_PAGE),
-  );
-  const displayedPage = Math.min(currentPage, totalPages);
-  const paginatedProducts = useMemo(() => {
-    const start = (displayedPage - 1) * PRODUCTS_PER_PAGE;
-    return sortedProducts.slice(start, start + PRODUCTS_PER_PAGE);
-  }, [displayedPage, sortedProducts]);
-  const paginationPages = useMemo(
-    () => getPaginationPages(displayedPage, totalPages),
-    [displayedPage, totalPages],
-  );
-
-  function resetPagination() {
-    setCurrentPage(1);
-  }
+  }, [query, currentPage, pathname]);
+  const sortedProducts = products;
+  const totalPages = Math.max(1, Math.ceil(totalCount / PRODUCTS_PER_PAGE));
+  const displayedPage = currentPage;
+  const paginatedProducts = products;
+  const paginationPages = getPaginationPages(displayedPage, totalPages);
+  function resetPagination() {}
 
   function goToPage(page: number) {
     setCurrentPage(Math.min(Math.max(page, 1), totalPages));
@@ -314,14 +171,7 @@ export default function ShopPage() {
                   Filters
                 </h2>
                 <button
-                  onClick={() => {
-                    setSelectedCategory(null);
-                    setSelectedIntent(null);
-                    setSelectedBrand(null);
-                    setSelectedMaxPrice(null);
-                    setSearchQuery("");
-                    resetPagination();
-                  }}
+                  onClick={() => router.push(pathname)}
                   className="text-sm font-semibold text-purple-700"
                 >
                   Reset
@@ -342,7 +192,6 @@ export default function ShopPage() {
                       }
                       onChange={() => {
                         setSelectedCategory(null);
-                        setSelectedIntent(null);
                         resetPagination();
                       }}
                       className="h-4 w-4"
@@ -364,7 +213,6 @@ export default function ShopPage() {
                         }
                         onChange={() => {
                           setSelectedCategory(cat.slug);
-                          setSelectedIntent(null);
                           resetPagination();
                         }}
                         className="h-4 w-4"
@@ -403,10 +251,10 @@ export default function ShopPage() {
                         name="brand"
                         checked={
                           selectedBrand !== null &&
-                          normalize(selectedBrand) === normalize(brand.name)
+                          normalize(selectedBrand) === normalize(brand.slug)
                         }
                         onChange={() => {
-                          setSelectedBrand(brand.name);
+                          setSelectedBrand(brand.slug);
                           resetPagination();
                         }}
                         className="h-4 w-4"
@@ -500,7 +348,7 @@ export default function ShopPage() {
                     {isLoading
                       ? "Loading products…"
                       : sortedProducts.length
-                        ? `Showing ${(displayedPage - 1) * PRODUCTS_PER_PAGE + 1}–${Math.min(displayedPage * PRODUCTS_PER_PAGE, sortedProducts.length)} of ${sortedProducts.length} products`
+                        ? `Showing ${(displayedPage - 1) * PRODUCTS_PER_PAGE + 1}–${Math.min(displayedPage * PRODUCTS_PER_PAGE, totalCount)} of ${totalCount} products`
                         : "Showing 0 products"}
                   </span>
                 </div>
@@ -588,7 +436,9 @@ export default function ShopPage() {
                         key={page}
                         type="button"
                         onClick={() => goToPage(page)}
-                        aria-current={page === displayedPage ? "page" : undefined}
+                        aria-current={
+                          page === displayedPage ? "page" : undefined
+                        }
                         className={`grid size-10 place-items-center rounded-full border text-sm font-semibold transition ${
                           page === displayedPage
                             ? "border-purple-700 bg-purple-700 text-white"
@@ -635,14 +485,7 @@ export default function ShopPage() {
                     </button>
                   )}
                   <button
-                    onClick={() => {
-                      setSelectedCategory(null);
-                      setSelectedIntent(null);
-                      setSelectedBrand(null);
-                      setSelectedMaxPrice(null);
-                      setSearchQuery("");
-                      resetPagination();
-                    }}
+                    onClick={() => router.push(pathname)}
                     className="rounded-full bg-purple-700 px-5 py-2 text-sm font-semibold text-white transition hover:bg-purple-800"
                   >
                     Clear filters
@@ -684,4 +527,14 @@ function getPaginationPages(
   }
   pages.push(totalPages);
   return pages;
+}
+
+export default function ShopPage() {
+  return (
+    <Suspense
+      fallback={<div className="p-12 text-center">Loading catalog...</div>}
+    >
+      <ShopPageContent />
+    </Suspense>
+  );
 }

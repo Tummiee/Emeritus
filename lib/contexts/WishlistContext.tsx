@@ -1,109 +1,157 @@
-'use client'
-
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
-import { WishlistContextType } from '../types'
-import { useToast } from '@/components/ui/toast'
-
-const WishlistContext = createContext<WishlistContextType | undefined>(undefined)
-
+"use client";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import { createClient } from "@/lib/supabase/client";
+import { storage } from "@/lib/storage";
+import type { WishlistContextType } from "../types";
+const Context = createContext<WishlistContextType | undefined>(undefined);
+function read(key: string): string[] {
+  try {
+    const value: unknown = JSON.parse(storage.get(key) || "[]");
+    return Array.isArray(value)
+      ? value
+          .filter(
+            (id): id is string =>
+              typeof id === "string" && /^[0-9a-f-]{36}$/i.test(id),
+          )
+          .slice(0, 100)
+      : [];
+  } catch {
+    return [];
+  }
+}
 export function WishlistProvider({ children }: { children: ReactNode }) {
-  const { showToast } = useToast()
-  const [items, setItems] = useState<string[]>([])
-  const [mounted, setMounted] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
-  const [syncError, setSyncError] = useState<string | null>(null)
-
-  // Load wishlist from localStorage on mount
+  const [items, setItems] = useState<string[]>([]);
+  const [isLoading, setLoading] = useState(true);
+  const [syncError, setError] = useState<string | null>(null);
+  const current = useRef({
+    user: undefined as string | null | undefined,
+    generation: 0,
+    key: "emeritus-wishlist:guest",
+    items: [] as string[],
+  });
+  const queue = useRef(Promise.resolve());
+  function commit(next: string[]) {
+    current.current.items = next;
+    setItems(next);
+    storage.set(current.current.key, JSON.stringify(next));
+  }
   useEffect(() => {
-    const savedWishlist = localStorage.getItem('wishlist')
-    let localItems: string[] = []
-    if (savedWishlist) {
+    const supabase = createClient();
+    let active = true;
+    async function hydrate(user: string | null) {
+      if (current.current.user === user) return;
+      current.current.user = user;
+      const generation = ++current.current.generation;
+      current.current.key = user
+        ? `emeritus-wishlist:user:${user}`
+        : "emeritus-wishlist:guest";
+      setLoading(true);
+      setError(null);
+      setItems([]);
       try {
-        const parsed: unknown = JSON.parse(savedWishlist)
-        if (Array.isArray(parsed)) {
-          localItems = parsed.filter((id): id is string => typeof id === 'string')
-          setItems(localItems)
+        let next = read(current.current.key);
+        if (user) {
+          const response = await fetch("/api/wishlist", { cache: "no-store" });
+          const payload = await response.json();
+          if (!response.ok) throw new Error("Wishlist unavailable");
+          const guest = read("emeritus-wishlist:guest");
+          next = [...new Set<string>([...payload.data, ...guest])].slice(
+            0,
+            100,
+          );
+          for (const productId of guest) {
+            if (!active || generation !== current.current.generation) return;
+            const saved = await fetch("/api/wishlist", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ productId, action: "add" }),
+            });
+            if (!saved.ok) throw new Error("Wishlist sync unavailable");
+          }
+          if (active && generation === current.current.generation)
+            storage.remove("emeritus-wishlist:guest");
         }
-      } catch (error) {
-        console.error('Failed to load wishlist:', error)
-        localStorage.removeItem('wishlist')
+        if (active && generation === current.current.generation) commit(next);
+      } catch {
+        if (active && generation === current.current.generation) {
+          commit(read(current.current.key));
+          setError("Could not sync your wishlist. Reload to retry.");
+        }
+      } finally {
+        if (active && generation === current.current.generation)
+          setLoading(false);
       }
     }
-    fetch('/api/wishlist')
-      .then((response) => response.ok ? response.json() : null)
-      .then((result) => {
-        if (result?.data) {
-          setItems((local) => Array.from(new Set([...local, ...result.data])))
-          result.data.length === 0 && localStorage.getItem('wishlist') &&
-            localItems.forEach((productId: string) =>
-              fetch('/api/wishlist', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ productId, action: 'add' }) }),
-            )
-        }
-      })
-      .catch(() => setSyncError('Could not sync your saved products. Local favorites are still available.'))
-      .finally(() => setIsLoading(false))
-    setMounted(true)
-    const signedOut = () => {
-      setItems([])
-      setSyncError(null)
-      localStorage.removeItem('wishlist')
-    }
-    window.addEventListener('emeritus:signout', signedOut)
-    return () => window.removeEventListener('emeritus:signout', signedOut)
-  }, [])
-
-  // Save wishlist to localStorage whenever it changes
-  useEffect(() => {
-    if (mounted) {
-      localStorage.setItem('wishlist', JSON.stringify(items))
-    }
-  }, [items, mounted])
-
-  const addItem = (productId: string) => {
-    setSyncError(null)
-    setItems((prevItems) => (prevItems.includes(productId) ? prevItems : [...prevItems, productId]))
-    showToast({ kind: 'success', title: 'Saved to your wishlist' })
-    void fetch('/api/wishlist', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ productId, action: 'add' }) })
-      .then((response) => {
-        if (!response.ok && response.status !== 401) throw new Error()
-      })
-      .catch(() => {
-        const message = 'Your favorite was saved on this device but could not be synced.'
-        setSyncError(message)
-        showToast({ kind: 'warning', title: 'Saved on this device only', description: message })
-      })
-  }
-
-  const removeItem = (productId: string) => {
-    setSyncError(null)
-    setItems((prevItems) => prevItems.filter((id) => id !== productId))
-    showToast({ kind: 'info', title: 'Removed from your wishlist' })
-    void fetch('/api/wishlist', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ productId, action: 'remove' }) })
-      .then((response) => {
-        if (!response.ok && response.status !== 401) throw new Error()
+    void supabase.auth.getUser().then(({ data }) => {
+      if (active && current.current.user === undefined)
+        void hydrate(data.user?.id ?? null);
+    });
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
+      if (
+        active &&
+        ["INITIAL_SESSION", "SIGNED_IN", "SIGNED_OUT"].includes(event)
+      )
+        void hydrate(session?.user.id ?? null);
+    });
+    return () => {
+      active = false;
+      current.current.generation++;
+      current.current.user = undefined;
+      data.subscription.unsubscribe();
+    };
+  }, []);
+  function mutate(productId: string, action: "add" | "remove") {
+    if (isLoading) return;
+    const generation = current.current.generation;
+    const previous = current.current.items;
+    commit(
+      action === "add"
+        ? [...new Set([...previous, productId])].slice(0, 100)
+        : previous.filter((id) => id !== productId),
+    );
+    if (!current.current.user) return;
+    queue.current = queue.current
+      .catch(() => {})
+      .then(async () => {
+        if (current.current.generation !== generation) return;
+        const response = await fetch("/api/wishlist", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ productId, action }),
+        });
+        if (!response.ok) throw new Error("Wishlist sync failed");
       })
       .catch(() => {
-        const message = 'The favorite was removed on this device but could not be synced.'
-        setSyncError(message)
-        showToast({ kind: 'warning', title: 'Wishlist sync delayed', description: message })
-      })
+        if (current.current.generation === generation)
+          setError(
+            "Your device changes could not be synced. Reload to reconcile.",
+          );
+      });
   }
-
-  const isWishlisted = (productId: string) => {
-    return items.includes(productId)
-  }
-
   return (
-    <WishlistContext.Provider value={{ items, isLoading, syncError, addItem, removeItem, isWishlisted }}>
+    <Context.Provider
+      value={{
+        items,
+        isLoading,
+        syncError,
+        addItem: (id) => mutate(id, "add"),
+        removeItem: (id) => mutate(id, "remove"),
+        isWishlisted: (id) => items.includes(id),
+      }}
+    >
       {children}
-    </WishlistContext.Provider>
-  )
+    </Context.Provider>
+  );
 }
-
 export function useWishlist() {
-  const context = useContext(WishlistContext)
-  if (context === undefined) {
-    throw new Error('useWishlist must be used within a WishlistProvider')
-  }
-  return context
+  const value = useContext(Context);
+  if (!value) throw new Error("WishlistProvider missing");
+  return value;
 }

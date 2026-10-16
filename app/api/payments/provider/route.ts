@@ -1,13 +1,18 @@
-import { NextResponse } from "next/server"
+import { NextResponse } from "next/server";
 
-import { getActivePaymentProvider } from "@/lib/payments/provider"
+import { getActivePaymentProvider } from "@/lib/payments/provider";
+import { httpError } from "@/lib/http";
 
-export const dynamic = "force-dynamic"
+export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const provider = await getActivePaymentProvider()
-  return NextResponse.json(
-    { provider },
-    { headers: { "Cache-Control": "private, no-store" } },
-  )
+  try {
+    const provider = await getActivePaymentProvider();
+    return NextResponse.json(
+      { provider },
+      { headers: { "Cache-Control": "private, no-store" } },
+    );
+  } catch (error) {
+    return httpError(error);
+  }
 }

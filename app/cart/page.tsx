@@ -1,17 +1,13 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
+import { useCheckoutQuote } from "@/lib/hooks/useCheckoutQuote";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { useCart } from "@/lib/contexts/CartContext";
 import { Trash2, Plus, Minus, ShoppingCart } from "lucide-react";
 import { motion } from "framer-motion";
-
-type TaxState =
-  | { status: "loading" }
-  | { status: "error" }
-  | { status: "ready"; rule: { name: string; rate: number } | null };
 
 export default function CartPage() {
   const {
@@ -25,52 +21,39 @@ export default function CartPage() {
     clearCart,
     applyCoupon,
     removeCoupon,
+    authReady,
+    syncError,
+    refreshCart,
   } = useCart();
   const [promoCode, setPromoCode] = useState("");
   const [promoMessage, setPromoMessage] = useState("");
   const [applyingPromo, setApplyingPromo] = useState(false);
-  const [taxState, setTaxState] = useState<TaxState>({ status: "loading" });
-  const [taxRequest, setTaxRequest] = useState(0);
-  useEffect(() => {
-    const controller = new AbortController();
-    fetch("/api/tax?country=NG", {
-      cache: "no-store",
-      signal: controller.signal,
-    })
-      .then((response) => {
-        if (!response.ok) throw new Error("Tax request failed");
-        return response.json();
-      })
-      .then((result) => {
-        if (controller.signal.aborted) return;
-        if (result?.success !== true) throw new Error("Invalid tax response");
-        if (result.data === null) {
-          setTaxState({ status: "ready", rule: null });
-          return;
-        }
-        const rule = result.data;
-        if (
-          typeof rule?.name !== "string" ||
-          !rule.name.trim() ||
-          typeof rule.rate !== "number" ||
-          !Number.isFinite(rule.rate) ||
-          rule.rate < 0 ||
-          rule.rate > 100
-        ) {
-          throw new Error("Invalid tax rule");
-        }
-        setTaxState({ status: "ready", rule: { name: rule.name, rate: rule.rate } });
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) setTaxState({ status: "error" });
-      });
-    return () => controller.abort();
-  }, [taxRequest]);
-  const taxRule = taxState.status === "ready" ? taxState.rule : null;
-  const tax = taxState.status === "ready"
-    ? discountedTotal * ((taxRule?.rate ?? 0) / 100)
-    : null;
-  const orderTotal = tax === null ? null : discountedTotal + tax;
+  const { quote, status, retry } = useCheckoutQuote(
+    items,
+    couponCode,
+    undefined,
+    authReady,
+  );
+  const taxState = { status };
+  const taxRule = quote?.tax ?? null;
+  const tax = taxRule?.amount ?? 0;
+  const orderTotal = quote?.total ?? null;
+
+  if (syncError)
+    return (
+      <main className="p-12 text-center" role="alert">
+        {syncError}{" "}
+        <button onClick={() => void refreshCart()} className="underline">
+          Retry
+        </button>
+      </main>
+    );
+  if (!authReady)
+    return (
+      <div className="p-12 text-center" role="status">
+        Loading your cart...
+      </div>
+    );
 
   if (items.length === 0) {
     return (
@@ -153,7 +136,11 @@ export default function CartPage() {
                         </h3>
                         <p className="text-base sm:text-lg font-bold text-primary mb-3">
                           ₦
-                          {item.price.toLocaleString("en-NG", {
+                          {(
+                            quote?.lines.find(
+                              (line) => line.productId === item.productId,
+                            )?.unitPrice ?? item.price
+                          ).toLocaleString("en-NG", {
                             maximumFractionDigits: 2,
                           })}
                         </p>
@@ -161,12 +148,16 @@ export default function CartPage() {
                         {/* Quantity Controls */}
                         <div className="flex items-center gap-3">
                           <button
+                            aria-label={`Decrease quantity of ${item.name}`}
                             onClick={() =>
                               updateQuantity(item.productId, item.quantity - 1)
                             }
                             className="p-1 hover:bg-muted rounded transition-colors"
                           >
-                            <Minus className="w-4 h-4 text-muted-foreground" />
+                            <Minus
+                              aria-hidden="true"
+                              className="w-4 h-4 text-muted-foreground"
+                            />
                           </button>
                           <input
                             type="number"
@@ -181,12 +172,16 @@ export default function CartPage() {
                             className="w-16 px-2 py-1 border border-border rounded text-center"
                           />
                           <button
+                            aria-label={`Increase quantity of ${item.name}`}
                             onClick={() =>
                               updateQuantity(item.productId, item.quantity + 1)
                             }
                             className="p-1 hover:bg-muted rounded transition-colors"
                           >
-                            <Plus className="w-4 h-4 text-muted-foreground" />
+                            <Plus
+                              aria-hidden="true"
+                              className="w-4 h-4 text-muted-foreground"
+                            />
                           </button>
                         </div>
                       </div>
@@ -200,10 +195,13 @@ export default function CartPage() {
                         </p>
                         <p className="text-lg md:text-xl font-bold text-foreground">
                           ₦
-                          {(item.price * item.quantity).toLocaleString(
-                            "en-NG",
-                            { maximumFractionDigits: 2 },
-                          )}
+                          {(
+                            (quote?.lines.find(
+                              (line) => line.productId === item.productId,
+                            )?.unitPrice ?? item.price) * item.quantity
+                          ).toLocaleString("en-NG", {
+                            maximumFractionDigits: 2,
+                          })}
                         </p>
                       </div>
                       <button
@@ -244,7 +242,7 @@ export default function CartPage() {
                   <span>Subtotal</span>
                   <span>
                     ₦
-                    {total.toLocaleString("en-NG", {
+                    {(quote?.subtotal ?? total).toLocaleString("en-NG", {
                       maximumFractionDigits: 2,
                     })}
                   </span>
@@ -256,19 +254,28 @@ export default function CartPage() {
                   </span>
                 </div>
                 {taxState.status === "loading" && (
-                  <div className="flex justify-between text-muted-foreground" role="status">
+                  <div
+                    className="flex justify-between text-muted-foreground"
+                    role="status"
+                  >
                     <span>Tax</span>
-                    <span className="animate-pulse text-sm">Calculating...</span>
+                    <span className="animate-pulse text-sm">
+                      Calculating...
+                    </span>
                   </div>
                 )}
                 {taxState.status === "error" && (
-                  <div className="flex items-center justify-between gap-3" role="status">
-                    <span className="text-sm text-muted-foreground">Tax unavailable</span>
+                  <div
+                    className="flex items-center justify-between gap-3"
+                    role="status"
+                  >
+                    <span className="text-sm text-muted-foreground">
+                      Tax unavailable
+                    </span>
                     <button
                       type="button"
                       onClick={() => {
-                        setTaxState({ status: "loading" });
-                        setTaxRequest((request) => request + 1);
+                        retry();
                       }}
                       className="text-sm font-semibold text-primary underline underline-offset-4"
                     >
@@ -282,14 +289,19 @@ export default function CartPage() {
                       {taxRule.name} ({taxRule.rate}%)
                     </span>
                     <span>
-                      ₦{tax.toLocaleString("en-NG", { maximumFractionDigits: 2 })}
+                      ₦
+                      {tax.toLocaleString("en-NG", {
+                        maximumFractionDigits: 2,
+                      })}
                     </span>
                   </div>
                 )}
-                {discount > 0 && (
+                {(quote?.discount ?? discount) > 0 && (
                   <div className="flex justify-between text-emerald-700">
                     <span>Discount ({couponCode})</span>
-                    <span>-₦{discount.toLocaleString()}</span>
+                    <span>
+                      -₦{(quote?.discount ?? discount).toLocaleString()}
+                    </span>
                   </div>
                 )}
               </div>
@@ -298,7 +310,9 @@ export default function CartPage() {
                 <span>Total</span>
                 <span>
                   {orderTotal === null
-                    ? taxState.status === "loading" ? "Calculating..." : "Unavailable"
+                    ? taxState.status === "loading"
+                      ? "Calculating..."
+                      : "Unavailable"
                     : `₦${orderTotal.toLocaleString("en-NG", {
                         maximumFractionDigits: 2,
                       })}`}

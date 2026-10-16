@@ -1,5 +1,5 @@
 import Link from "next/link"
-import Image from "next/image"
+import Image from "@/components/SafeImage"
 import { Pencil, Plus, Trash2 } from "lucide-react"
 
 import { AdminImageField } from "@/components/admin/AdminImageField"
