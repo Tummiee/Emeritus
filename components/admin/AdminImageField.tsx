@@ -9,17 +9,20 @@ export function AdminImageField({
   initialUrl,
   required,
   onUrlChange,
+  onFileChange,
   invalid,
 }: {
   name: string;
   initialUrl?: string;
   required?: boolean;
   onUrlChange?: (value: string) => void;
+  onFileChange?: (file: File | undefined) => void;
   invalid?: boolean;
 }) {
   const [url, setUrl] = useState(initialUrl ?? "");
   const fileInput = useRef<HTMLInputElement>(null);
   const [filePreview, setFilePreview] = useState("");
+  const [selectedFileName, setSelectedFileName] = useState("");
   const preview = filePreview || url;
 
   useEffect(() => {
@@ -46,6 +49,8 @@ export function AdminImageField({
               setUrl("");
               onUrlChange?.("");
               setFilePreview("");
+              setSelectedFileName("");
+              onFileChange?.(undefined);
               if (fileInput.current) fileInput.current.value = "";
             }}
             className="absolute right-2 top-2 grid size-8 place-items-center rounded-full bg-white text-slate-700 shadow"
@@ -73,6 +78,8 @@ export function AdminImageField({
             accept="image/jpeg,image/png,image/webp,image/gif"
             onChange={(event) => {
               const file = event.target.files?.[0];
+              setSelectedFileName(file?.name ?? "");
+              onFileChange?.(file);
               setFilePreview(file ? URL.createObjectURL(file) : "");
             }}
             className="mt-1 block w-full text-xs text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-xs file:font-semibold"
@@ -80,6 +87,11 @@ export function AdminImageField({
           <p className="mt-1 text-[11px] text-slate-400">
             JPG, PNG, WebP or GIF. Maximum 10 MB.
           </p>
+          {selectedFileName && (
+            <p className="mt-1 text-xs text-slate-600">
+              Selected: {selectedFileName}. Kept for this save and any retries.
+            </p>
+          )}
         </div>
         <div>
           <span className="text-xs font-medium text-slate-600">

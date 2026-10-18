@@ -86,16 +86,6 @@ async function saveEntityForm(
       }
     } else values[field.name] = String(raw ?? "").trim() || null;
   }
-  for (const field of config.fields) {
-    if (id && field.readOnlyWhenEditing) continue;
-    if (
-      field.required &&
-      (values[field.name] == null || values[field.name] === "") &&
-      !imageFiles.has(field.name) &&
-      !fieldErrors[field.name]
-    )
-      fieldErrors[field.name] = [`Enter ${field.label.toLowerCase()}.`];
-  }
 
   if (typeof values.code === "string") values.code = values.code.toUpperCase();
   for (const field of config.fields) {
@@ -124,12 +114,12 @@ async function saveEntityForm(
   }
   const supabase = await createClient();
   let existingSlug: string | undefined;
+  const retainedImages = new Set<string>();
   if (id) {
+    const columns = ["id", ...config.fields.filter((field) => field.name === "slug" || field.type === "image").map((field) => field.name)];
     const { data: record, error } = await supabase
       .from(config.table)
-      .select(
-        config.fields.some((field) => field.name === "slug") ? "id,slug" : "id",
-      )
+      .select(columns.join(","))
       .eq("id", id)
       .maybeSingle();
     if (error)
@@ -142,11 +132,24 @@ async function saveEntityForm(
       );
     if ("slug" in record && typeof record.slug === "string")
       existingSlug = record.slug;
+    const existing = record as unknown as Record<string, unknown>;
+    for (const field of config.fields) {
+      if (field.type !== "image" || imageFiles.has(field.name)) continue;
+      // An omitted image means keep it; an explicitly cleared URL still removes it.
+      if (!formData.has(field.name)) values[field.name] = existing[field.name] ?? null;
+      if (typeof existing[field.name] === "string" && existing[field.name] !== "" && values[field.name] === existing[field.name])
+        retainedImages.add(field.name);
+    }
+  }
+  for (const field of config.fields) {
+    if (id && field.readOnlyWhenEditing) continue;
+    if (field.required && (values[field.name] == null || values[field.name] === "") && !imageFiles.has(field.name) && !fieldErrors[field.name])
+      fieldErrors[field.name] = [`Enter ${field.label.toLowerCase()}.`];
   }
   const validated = validateEntityValues(
     {
       ...config,
-      fields: config.fields.filter((field) => !imageFiles.has(field.name)),
+      fields: config.fields.filter((field) => !imageFiles.has(field.name) && !retainedImages.has(field.name)),
     },
     values,
     Boolean(id),
@@ -197,10 +200,10 @@ async function saveEntityForm(
           .from("admin-media")
           .remove(uploaded.map((item) => item.path));
       return failure(
-        "The image could not be uploaded. Check your connection and storage permissions, then select the file again.",
+        "The image could not be uploaded. Your selected file has been kept. Check your connection and storage permissions, then retry saving.",
         {
           [fieldName]: [
-            `Upload failed: ${uploadError.message}. Select the image again and retry.`,
+            `Upload failed: ${uploadError.message}. Retry saving, or choose a different image.`,
           ],
         },
       );

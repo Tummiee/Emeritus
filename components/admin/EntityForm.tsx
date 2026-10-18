@@ -41,12 +41,6 @@ function FormMessages({
           ))}
         </ul>
       )}
-      {config.fields.some((field) => field.type === "image") && (
-        <p className="mt-2">
-          If you selected an image file, select it again before retrying.
-          Entered text and image URLs have been kept.
-        </p>
-      )}
     </FormFeedback>
   );
 }
@@ -58,7 +52,7 @@ function FieldInput({
   disabled,
   onChange,
   error,
-  submission,
+  onFileChange,
 }: {
   field: Field;
   value: unknown;
@@ -66,18 +60,18 @@ function FieldInput({
   disabled?: boolean;
   onChange: (value: string | boolean) => void;
   error?: boolean;
-  submission: number;
+  onFileChange: (file: File | undefined) => void;
 }) {
   const base =
     "mt-1.5 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed";
   if (field.type === "image")
     return (
       <AdminImageField
-        key={submission}
         name={field.name}
         aria-invalid={error || undefined}
         aria-describedby={error ? `${field.name}-error` : undefined}
         onUrlChange={onChange}
+        onFileChange={onFileChange}
         invalid={error}
         initialUrl={String(value ?? "")}
         required={field.required && !disabled}
@@ -195,8 +189,15 @@ export function EntityForm({
   editing?: Record<string, unknown>;
   options: OptionMap;
 }) {
+  const [imageFiles, setImageFiles] = useState<Record<string, File>>({});
   const [state, formAction, pending] = useActionState(
-    saveEntity,
+    async (previous: EntityFormState, formData: FormData) => {
+      // React resets native file inputs when an action returns. Keep the
+      // selected files in memory so validation errors do not require reuploads.
+      for (const [name, file] of Object.entries(imageFiles))
+        formData.set(`${name}__file`, file);
+      return saveEntity(previous, formData);
+    },
     initialEntityFormState,
   );
   const [values, setValues] = useState<Record<string, unknown>>(() =>
@@ -256,7 +257,12 @@ export function EntityForm({
                   setValues((current) => ({ ...current, [field.name]: value }))
                 }
                 error={Boolean(state.fieldErrors[field.name])}
-                submission={state.submission}
+                onFileChange={(file) => setImageFiles((current) => {
+                  const next = { ...current };
+                  if (file) next[field.name] = file;
+                  else delete next[field.name];
+                  return next;
+                })}
                 options={options}
                 disabled={isFieldDisabled}
               />
