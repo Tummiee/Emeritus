@@ -8,6 +8,8 @@ export const ADMIN_IMAGE_TYPES = [
 ] as const;
 
 export function imageUrlAllowed(value: string) {
+  if (value.startsWith("/") && !value.startsWith("//"))
+    return imageSourceAllowed(value);
   try {
     const url = new URL(value);
     return (

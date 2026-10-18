@@ -1,39 +1,52 @@
-"use client"
+"use client";
 
-import Image from "@/components/SafeImage"
-import { useEffect, useState } from "react"
-import { ImagePlus, X } from "lucide-react"
+import Image from "@/components/SafeImage";
+import { useEffect, useRef, useState } from "react";
+import { ImagePlus, X } from "lucide-react";
 
 export function AdminImageField({
   name,
   initialUrl,
   required,
+  onUrlChange,
+  invalid,
 }: {
-  name: string
-  initialUrl?: string
-  required?: boolean
+  name: string;
+  initialUrl?: string;
+  required?: boolean;
+  onUrlChange?: (value: string) => void;
+  invalid?: boolean;
 }) {
-  const [url, setUrl] = useState(initialUrl ?? "")
-  const [filePreview, setFilePreview] = useState("")
-  const preview = filePreview || url
+  const [url, setUrl] = useState(initialUrl ?? "");
+  const fileInput = useRef<HTMLInputElement>(null);
+  const [filePreview, setFilePreview] = useState("");
+  const preview = filePreview || url;
 
   useEffect(() => {
     return () => {
-      if (filePreview) URL.revokeObjectURL(filePreview)
-    }
-  }, [filePreview])
+      if (filePreview) URL.revokeObjectURL(filePreview);
+    };
+  }, [filePreview]);
 
   return (
     <div className="mt-1.5 overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
       {preview ? (
         <div className="relative aspect-[16/7] bg-white">
-          <Image src={preview} alt="Selected image preview" fill unoptimized className="object-contain p-3" />
+          <Image
+            src={preview}
+            alt="Selected image preview"
+            fill
+            unoptimized
+            className="object-contain p-3"
+          />
           <button
             type="button"
             aria-label="Clear image selection"
             onClick={() => {
-              setUrl("")
-              setFilePreview("")
+              setUrl("");
+              onUrlChange?.("");
+              setFilePreview("");
+              if (fileInput.current) fileInput.current.value = "";
             }}
             className="absolute right-2 top-2 grid size-8 place-items-center rounded-full bg-white text-slate-700 shadow"
           >
@@ -50,32 +63,45 @@ export function AdminImageField({
       )}
       <div className="grid gap-3 border-t border-slate-200 bg-white p-3 md:grid-cols-2">
         <div>
-          <span className="text-xs font-medium text-slate-600">Upload an image</span>
+          <span className="text-xs font-medium text-slate-600">
+            Upload an image
+          </span>
           <input
             name={`${name}__file`}
+            ref={fileInput}
             type="file"
             accept="image/jpeg,image/png,image/webp,image/gif"
             onChange={(event) => {
-              const file = event.target.files?.[0]
-              setFilePreview(file ? URL.createObjectURL(file) : "")
+              const file = event.target.files?.[0];
+              setFilePreview(file ? URL.createObjectURL(file) : "");
             }}
             className="mt-1 block w-full text-xs text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-xs file:font-semibold"
           />
-          <p className="mt-1 text-[11px] text-slate-400">JPG, PNG, WebP or GIF. Maximum 10 MB.</p>
+          <p className="mt-1 text-[11px] text-slate-400">
+            JPG, PNG, WebP or GIF. Maximum 10 MB.
+          </p>
         </div>
         <div>
-          <span className="text-xs font-medium text-slate-600">Or use an image URL</span>
+          <span className="text-xs font-medium text-slate-600">
+            Or use an image URL
+          </span>
           <input
             name={name}
-            type="url"
+            id={name}
+            type="text"
+            aria-invalid={invalid || undefined}
+            aria-describedby={invalid ? `${name}-error` : undefined}
             value={url}
             required={required && !filePreview}
-            onChange={(event) => setUrl(event.target.value)}
-            placeholder="https://example.com/image.jpg"
+            onChange={(event) => {
+              setUrl(event.target.value);
+              onUrlChange?.(event.target.value);
+            }}
+            placeholder="/images/photo.jpg or https://…"
             className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-xs outline-none focus:border-primary"
           />
         </div>
       </div>
     </div>
-  )
+  );
 }

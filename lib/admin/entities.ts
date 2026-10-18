@@ -39,7 +39,7 @@ export const entities = {
     { name: "section_key", label: "Section key", required: true }, { name: "title", label: "Title", required: true }, { name: "content", label: "Section JSON", type: "json", required: true }, { name: "display_order", label: "Display order", type: "number" }, { name: "active", label: "Active", type: "boolean" },
   ]},
   coupons: { table: "coupons", title: "Coupons", description: "Configure discounts, redemption windows, and usage limits.", singular: "coupon", list: ["code", "discount_type", "discount_value", "active"], fields: [
-    { name: "code", label: "Code", required: true }, { name: "description", label: "Description" }, { name: "discount_type", label: "Discount type", type: "select", options: [{ label: "Percentage", value: "percentage" }, { label: "Fixed amount", value: "fixed" }] },
+    { name: "code", label: "Code", required: true }, { name: "description", label: "Description" }, { name: "discount_type", label: "Discount type", type: "select", required: true, options: [{ label: "Percentage", value: "percentage" }, { label: "Fixed amount", value: "fixed" }] },
     { name: "discount_value", label: "Discount value", type: "number", required: true }, { name: "minimum_amount", label: "Minimum order", type: "number" }, { name: "usage_limit", label: "Usage limit", type: "number" },
     { name: "starts_at", label: "Starts at", type: "datetime" }, { name: "expires_at", label: "Expires at", type: "datetime" }, { name: "active", label: "Active", type: "boolean" },
   ]},
@@ -48,7 +48,7 @@ export const entities = {
     { name: "rating", label: "Rating", type: "number", required: true, readOnlyWhenEditing: true },
     { name: "title", label: "Title", readOnlyWhenEditing: true },
     { name: "body", label: "Review", type: "textarea", required: true, readOnlyWhenEditing: true },
-    { name: "status", label: "Status", type: "select", options: [{ label: "Pending", value: "pending" }, { label: "Approved", value: "approved" }, { label: "Rejected", value: "rejected" }] }, { name: "admin_response", label: "Admin response", type: "textarea" },
+    { name: "status", label: "Status", type: "select", required: true, options: [{ label: "Pending", value: "pending" }, { label: "Approved", value: "approved" }, { label: "Rejected", value: "rejected" }] }, { name: "admin_response", label: "Admin response", type: "textarea" },
   ]},
 } satisfies Record<string, EntityConfig>
 

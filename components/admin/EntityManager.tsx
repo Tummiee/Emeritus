@@ -2,121 +2,23 @@ import Link from "next/link";
 import { PageNavigation } from "@/components/PageNavigation";
 import { pageNumber } from "@/lib/pagination";
 import { FileUp, Pencil, Plus, Trash2 } from "lucide-react";
-import { AdminImageField } from "@/components/admin/AdminImageField";
+import { EntityForm, type OptionMap } from "@/components/admin/EntityForm";
+import { FormFeedback } from "@/components/admin/FormFeedback";
 import { BulkProductActions } from "@/components/admin/BulkProductActions";
 import { ReviewModerationActions } from "@/components/admin/ReviewModerationActions";
 import {
   entities,
   type EntityConfig,
   type EntityName,
-  type Field,
 } from "@/lib/admin/entities";
-import { deleteEntity, saveEntity } from "@/lib/admin/entity-actions";
+import { deleteEntity } from "@/lib/admin/entity-actions";
 import { createClient } from "@/lib/supabase/server";
-
-type OptionMap = Record<string, Array<{ label: string; value: string }>>;
 
 function display(value: unknown) {
   if (typeof value === "boolean") return value ? "Active" : "Inactive";
   if (value === null || value === undefined || value === "") return "—";
   if (typeof value === "object") return JSON.stringify(value);
   return String(value);
-}
-
-function FieldInput({
-  field,
-  value,
-  options,
-  disabled,
-}: {
-  field: Field;
-  value: unknown;
-  options: OptionMap;
-  disabled?: boolean;
-}) {
-  const base =
-    "mt-1.5 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed";
-  if (field.type === "image")
-    return (
-      <AdminImageField
-        name={field.name}
-        initialUrl={String(value ?? "")}
-        required={field.required && !disabled}
-      />
-    );
-  if (field.type === "boolean")
-    return (
-      <label className="mt-3 flex items-center gap-2 text-sm text-slate-600">
-        <input
-          name={field.name}
-          type="checkbox"
-          defaultChecked={value === undefined ? true : Boolean(value)}
-          disabled={disabled}
-          className="size-4 accent-primary"
-        />{" "}
-        Enabled
-      </label>
-    );
-  if (field.type === "textarea" || field.type === "json")
-    return (
-      <textarea
-        name={field.name}
-        required={field.required && !disabled}
-        disabled={disabled}
-        rows={field.type === "json" ? 8 : 4}
-        defaultValue={
-          field.type === "json"
-            ? JSON.stringify(value ?? {}, null, 2)
-            : String(value ?? "")
-        }
-        className={`${base} h-auto py-3 font-${field.type === "json" ? "mono" : "sans"}`}
-      />
-    );
-  if (field.type === "select") {
-    const items =
-      field.options ??
-      (field.optionSource ? options[field.optionSource] : []) ??
-      [];
-    return (
-      <select
-        name={field.name}
-        required={field.required && !disabled}
-        disabled={disabled}
-        defaultValue={String(value ?? "")}
-        className={base}
-      >
-        <option value="">Select…</option>
-        {items.map((item) => (
-          <option key={item.value} value={item.value}>
-            {item.label}
-          </option>
-        ))}
-      </select>
-    );
-  }
-  const type =
-    field.type === "number"
-      ? "number"
-      : field.type === "date"
-        ? "date"
-        : field.type === "datetime"
-          ? "datetime-local"
-          : "text";
-  const normalized =
-    field.type === "datetime" && value
-      ? String(value).slice(0, 16)
-      : String(value ?? "");
-  return (
-    <input
-      name={field.name}
-      type={type}
-      step={field.type === "number" ? "0.01" : undefined}
-      required={field.required && !disabled}
-      disabled={disabled}
-      defaultValue={normalized}
-      className={base}
-    />
-  );
 }
 
 export async function EntityManager({
@@ -218,76 +120,34 @@ export async function EntityManager({
         </div>
       </div>
       {params.saved && (
-        <p className="mt-5 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">
+        <FormFeedback className="mt-5 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">
           Changes saved.
-        </p>
+        </FormFeedback>
       )}
       {params.error && (
-        <p className="mt-5 rounded-xl bg-red-50 p-3 text-sm text-red-800">
-          Could not save: {decodeURIComponent(params.error)}
-        </p>
+        <FormFeedback error submission={params.error} className="mt-5 rounded-xl bg-red-50 p-3 text-sm text-red-800">
+          Could not save: {params.error}
+        </FormFeedback>
       )}
       {params.bulk && (
-        <p className="mt-5 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">
+        <FormFeedback className="mt-5 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">
           {Number(params.count ?? 0)} products{" "}
           {params.bulk === "deleted" ? "permanently deleted" : "deactivated"}.
-        </p>
+        </FormFeedback>
       )}
       {params.moderated && (
-        <p className="mt-5 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">
+        <FormFeedback className="mt-5 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">
           Review {params.moderated}.
-        </p>
+        </FormFeedback>
       )}
       {showForm && (
-        <form
-          action={saveEntity}
-          encType="multipart/form-data"
-          className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
-        >
-          <input type="hidden" name="entity" value={entity} />
-          <input type="hidden" name="id" value={editing?.id ?? ""} />
-          <div className="mb-5 flex items-center justify-between">
-            <h2 className="text-lg font-semibold">
-              {editing ? `Edit ${config.singular}` : `New ${config.singular}`}
-            </h2>
-            <Link href={`/admin/${entity}`} className="text-sm text-slate-500">
-              Cancel
-            </Link>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            {config.fields.map((field) => {
-              const isFieldDisabled = Boolean(
-                editing && field.readOnlyWhenEditing,
-              );
-              return (
-                <label
-                  key={field.name}
-                  className={
-                    field.type === "textarea" ||
-                    field.type === "json" ||
-                    field.type === "image"
-                      ? "md:col-span-2 text-sm font-medium"
-                      : "text-sm font-medium"
-                  }
-                >
-                  {field.label}
-                  {field.required && !isFieldDisabled && (
-                    <span className="text-red-500"> *</span>
-                  )}
-                  <FieldInput
-                    field={field}
-                    value={editing?.[field.name]}
-                    options={options}
-                    disabled={isFieldDisabled}
-                  />
-                </label>
-              );
-            })}
-          </div>
-          <button className="mt-5 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white">
-            Save changes
-          </button>
-        </form>
+        <EntityForm
+          key={editing?.id ?? "new"}
+          entity={entity}
+          config={config}
+          editing={editing}
+          options={options}
+        />
       )}
       <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
