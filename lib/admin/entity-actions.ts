@@ -8,7 +8,10 @@ import {
   type EntityName,
 } from "@/lib/admin/entities";
 import { optimizeAdminImage } from "@/lib/admin/image-optimization";
-import { validateAdminImage } from "@/lib/admin/image-upload";
+import {
+  isUnselectedImageFile,
+  validateAdminImage,
+} from "@/lib/admin/image-upload";
 import { validateEntityValues } from "@/lib/admin/entity-validation";
 import { requireAdmin } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
@@ -61,7 +64,7 @@ async function saveEntityForm(
     if (field.type === "image") {
       const file = formData.get(`${field.name}__file`);
       values[field.name] = String(raw ?? "").trim() || null;
-      if (file instanceof File && (file.size > 0 || file.name !== "")) {
+      if (file instanceof File && !isUnselectedImageFile(file)) {
         const validationError = validateAdminImage(file);
         if (validationError)
           fieldErrors[field.name] = [
@@ -116,7 +119,12 @@ async function saveEntityForm(
   let existingSlug: string | undefined;
   const retainedImages = new Set<string>();
   if (id) {
-    const columns = ["id", ...config.fields.filter((field) => field.name === "slug" || field.type === "image").map((field) => field.name)];
+    const columns = [
+      "id",
+      ...config.fields
+        .filter((field) => field.name === "slug" || field.type === "image")
+        .map((field) => field.name),
+    ];
     const { data: record, error } = await supabase
       .from(config.table)
       .select(columns.join(","))
@@ -136,20 +144,33 @@ async function saveEntityForm(
     for (const field of config.fields) {
       if (field.type !== "image" || imageFiles.has(field.name)) continue;
       // An omitted image means keep it; an explicitly cleared URL still removes it.
-      if (!formData.has(field.name)) values[field.name] = existing[field.name] ?? null;
-      if (typeof existing[field.name] === "string" && existing[field.name] !== "" && values[field.name] === existing[field.name])
+      if (!formData.has(field.name))
+        values[field.name] = existing[field.name] ?? null;
+      if (
+        typeof existing[field.name] === "string" &&
+        existing[field.name] !== "" &&
+        values[field.name] === existing[field.name]
+      )
         retainedImages.add(field.name);
     }
   }
   for (const field of config.fields) {
     if (id && field.readOnlyWhenEditing) continue;
-    if (field.required && (values[field.name] == null || values[field.name] === "") && !imageFiles.has(field.name) && !fieldErrors[field.name])
+    if (
+      field.required &&
+      (values[field.name] == null || values[field.name] === "") &&
+      !imageFiles.has(field.name) &&
+      !fieldErrors[field.name]
+    )
       fieldErrors[field.name] = [`Enter ${field.label.toLowerCase()}.`];
   }
   const validated = validateEntityValues(
     {
       ...config,
-      fields: config.fields.filter((field) => !imageFiles.has(field.name) && !retainedImages.has(field.name)),
+      fields: config.fields.filter(
+        (field) =>
+          !imageFiles.has(field.name) && !retainedImages.has(field.name),
+      ),
     },
     values,
     Boolean(id),

@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createRequire } from "node:module";
+import type { Readable, Writable } from "node:stream";
 
 const mocks = vi.hoisted(() => ({
   requireAdmin: vi.fn(),
@@ -56,6 +58,96 @@ beforeEach(() => {
 });
 
 describe("admin save feedback", () => {
+  it("keeps the product image when an untouched input passes through Next's multipart parser", async () => {
+    const imageUrl = "https://legacy-cdn.example/iron.jpg";
+    mocks.read.mockResolvedValueOnce({
+      data: { id: recordId, slug: "solar-iron", image_url: imageUrl },
+      error: null,
+    });
+    const data = form("products", {
+      id: recordId,
+      name: "Updated iron",
+      slug: "solar-iron",
+      sku: "IRON-1",
+      price: "125",
+      image_url: imageUrl,
+    });
+    data.set(
+      "image_url__file",
+      new File([], "", { type: "application/octet-stream" }),
+    );
+    const request = new Request("http://localhost", {
+      method: "POST",
+      body: data,
+    });
+    const busboy = createRequire(import.meta.url)(
+      "next/dist/compiled/busboy",
+    ) as (options: { headers: Record<string, string> }) => Writable;
+    const parser = busboy({
+      headers: { "content-type": request.headers.get("content-type")! },
+    });
+    const decoded = new FormData();
+    parser.on("field", (name: string, value: string) =>
+      decoded.append(name, value),
+    );
+    parser.on(
+      "file",
+      (
+        name: string,
+        stream: Readable,
+        info: { filename?: string; mimeType: string },
+      ) => {
+        stream.resume();
+        // Mirror React's decodeReplyFromBusboy construction for this empty part.
+        decoded.append(
+          name,
+          new File([], info.filename as string, { type: info.mimeType }),
+        );
+      },
+    );
+    const finished = new Promise<void>((resolve, reject) => {
+      parser.once("finish", resolve);
+      parser.once("error", reject);
+    });
+    parser.end(Buffer.from(await request.arrayBuffer()));
+    await finished;
+    expect((decoded.get("image_url__file") as File).name).toBe("undefined");
+    await expect(saveEntity(initialEntityFormState, decoded)).rejects.toThrow(
+      "/admin/products?saved=1",
+    );
+    expect(mocks.write).toHaveBeenCalledWith(
+      "admin_save_product",
+      expect.objectContaining({
+        p_values: expect.objectContaining({
+          image_url: imageUrl,
+          price: 125,
+          name: "Updated iron",
+        }),
+      }),
+    );
+    expect(mocks.optimize).not.toHaveBeenCalled();
+  });
+
+  it("still rejects a genuinely empty replacement image", async () => {
+    const data = form("products", {
+      id: recordId,
+      name: "Solar iron",
+      slug: "solar-iron",
+      sku: "IRON-1",
+      price: "125",
+      image_url: "/images/iron.jpg",
+    });
+    data.set(
+      "image_url__file",
+      new File([], "replacement.png", { type: "image/png" }),
+    );
+    const state = await saveEntity(initialEntityFormState, data);
+    expect(state.fieldErrors.image_url).toEqual([
+      "This image is empty. Choose a different file.",
+    ]);
+    expect(mocks.write).not.toHaveBeenCalled();
+  });
+
   it.each(["products", "categories", "brands"])(
     "returns specific field errors for invalid %s without writing",
     async (entity) => {

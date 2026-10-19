@@ -194,6 +194,9 @@ export function EntityForm({
     async (previous: EntityFormState, formData: FormData) => {
       // React resets native file inputs when an action returns. Keep the
       // selected files in memory so validation errors do not require reuploads.
+      // Remove untouched browser file-input placeholders before serialization.
+      for (const field of config.fields)
+        if (field.type === "image") formData.delete(`${field.name}__file`);
       for (const [name, file] of Object.entries(imageFiles))
         formData.set(`${name}__file`, file);
       return saveEntity(previous, formData);
@@ -257,12 +260,14 @@ export function EntityForm({
                   setValues((current) => ({ ...current, [field.name]: value }))
                 }
                 error={Boolean(state.fieldErrors[field.name])}
-                onFileChange={(file) => setImageFiles((current) => {
-                  const next = { ...current };
-                  if (file) next[field.name] = file;
-                  else delete next[field.name];
-                  return next;
-                })}
+                onFileChange={(file) =>
+                  setImageFiles((current) => {
+                    const next = { ...current };
+                    if (file) next[field.name] = file;
+                    else delete next[field.name];
+                    return next;
+                  })
+                }
                 options={options}
                 disabled={isFieldDisabled}
               />

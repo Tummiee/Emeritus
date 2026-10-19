@@ -7,6 +7,20 @@ export const ADMIN_IMAGE_TYPES = [
   "image/gif",
 ] as const;
 
+export function isUnselectedImageFile(file: {
+  name: string;
+  size: number;
+  type: string;
+}) {
+  // Next's Busboy decoder receives no filename for an untouched input and
+  // constructs File([], undefined), which gives it the name "undefined".
+  return (
+    file.size === 0 &&
+    (file.name === "" || file.name === "undefined") &&
+    (file.type === "" || file.type === "application/octet-stream")
+  );
+}
+
 export function imageUrlAllowed(value: string) {
   if (value.startsWith("/") && !value.startsWith("//"))
     return imageSourceAllowed(value);
