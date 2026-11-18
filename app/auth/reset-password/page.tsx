@@ -1,13 +1,23 @@
-import Link from "next/link"
+import Link from "next/link";
 
-import Footer from "@/components/Footer"
-import Header from "@/components/Header"
-import { AuthForm } from "@/components/auth/AuthForm"
-import { createClient } from "@/lib/supabase/server"
+import Footer from "@/components/Footer";
+import Header from "@/components/Header";
+import { AuthForm } from "@/components/auth/AuthForm";
+import { createClient } from "@/lib/supabase/server";
+import { EMAIL_PASSWORD_AUTH_ENABLED } from "@/lib/auth/policy";
+import { redirectLegacyAuth } from "@/lib/auth/legacy";
 
-export default async function ResetPasswordPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+export default async function ResetPasswordPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string }>;
+}) {
+  const params = await searchParams;
+  if (!EMAIL_PASSWORD_AUTH_ENABLED) redirectLegacyAuth(params.next);
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
@@ -18,9 +28,13 @@ export default async function ResetPasswordPage() {
           <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 text-center shadow-lg">
             <h1 className="text-2xl font-bold">Reset link required</h1>
             <p className="mt-3 text-sm text-muted-foreground">
-              This reset session is missing or has expired. Request a new password-reset email.
+              This reset session is missing or has expired. Request a new
+              password-reset email.
             </p>
-            <Link href="/auth/forgot-password" className="mt-6 inline-flex rounded-xl bg-primary px-5 py-3 font-semibold text-primary-foreground">
+            <Link
+              href="/auth/forgot-password"
+              className="mt-6 inline-flex rounded-xl bg-primary px-5 py-3 font-semibold text-primary-foreground"
+            >
               Request another link
             </Link>
           </div>
@@ -28,5 +42,5 @@ export default async function ResetPasswordPage() {
       </main>
       <Footer />
     </div>
-  )
+  );
 }

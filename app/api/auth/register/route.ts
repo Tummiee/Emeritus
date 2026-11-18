@@ -9,8 +9,18 @@ import {
 } from "@/lib/auth/helpers";
 import { getSiteUrl } from "@/lib/auth/url";
 import { createClient } from "@/lib/supabase/server";
+import {
+  EMAIL_PASSWORD_AUTH_ENABLED,
+  PASSWORD_AUTH_DISABLED_MESSAGE,
+} from "@/lib/auth/policy";
 
 export async function POST(request: Request) {
+  if (!EMAIL_PASSWORD_AUTH_ENABLED) {
+    return NextResponse.json(
+      { code: "password-auth-disabled", error: PASSWORD_AUTH_DISABLED_MESSAGE },
+      { status: 403 },
+    );
+  }
   try {
     await rateLimit(request, "register", 10);
     const parsed = z

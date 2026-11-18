@@ -14,12 +14,20 @@ import {
 } from "@/lib/auth/helpers";
 import { getSiteUrl } from "@/lib/auth/url";
 import { createClient } from "@/lib/supabase/server";
+import {
+  EMAIL_PASSWORD_AUTH_ENABLED,
+  passwordAuthDisabledState,
+} from "./policy";
 
 export type AuthState = {
   status: "idle" | "error" | "success";
   message?: string;
   fields?: Record<string, string>;
-  code?: AuthErrorKind | "verification-sent" | "recovery-sent";
+  code?:
+    | AuthErrorKind
+    | "verification-sent"
+    | "recovery-sent"
+    | "password-auth-disabled";
 };
 
 const email = z.string().trim().email("Enter a valid email address").max(254);
@@ -113,6 +121,7 @@ export async function login(
   _: AuthState,
   formData: FormData,
 ): Promise<AuthState> {
+  if (!EMAIL_PASSWORD_AUTH_ENABLED) return passwordAuthDisabledState;
   const limited = await limitAuth("login");
   if (limited) return limited;
   const parsed = z
@@ -157,6 +166,7 @@ export async function register(
   _: AuthState,
   formData: FormData,
 ): Promise<AuthState> {
+  if (!EMAIL_PASSWORD_AUTH_ENABLED) return passwordAuthDisabledState;
   const limited = await limitAuth("register");
   if (limited) return limited;
   const schema = z
@@ -220,6 +230,7 @@ export async function forgotPassword(
   _: AuthState,
   formData: FormData,
 ): Promise<AuthState> {
+  if (!EMAIL_PASSWORD_AUTH_ENABLED) return passwordAuthDisabledState;
   const limited = await limitAuth("forgotPassword");
   if (limited) return limited;
   const parsed = email.safeParse(formData.get("email"));
@@ -261,6 +272,7 @@ export async function resendVerification(
   _: AuthState,
   formData: FormData,
 ): Promise<AuthState> {
+  if (!EMAIL_PASSWORD_AUTH_ENABLED) return passwordAuthDisabledState;
   const limited = await limitAuth("resendVerification");
   if (limited) return limited;
   const parsed = email.safeParse(formData.get("email"));
@@ -303,6 +315,7 @@ export async function resetPassword(
   _: AuthState,
   formData: FormData,
 ): Promise<AuthState> {
+  if (!EMAIL_PASSWORD_AUTH_ENABLED) return passwordAuthDisabledState;
   const limited = await limitAuth("resetPassword");
   if (limited) return limited;
   const parsed = z

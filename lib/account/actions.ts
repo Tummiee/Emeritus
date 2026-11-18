@@ -8,6 +8,10 @@ import { safeNextPath } from "@/lib/auth/helpers";
 import { isFutureLagosAppointment } from "@/lib/appointments";
 import { optimizeAdminImage } from "@/lib/admin/image-optimization";
 import { createClient } from "@/lib/supabase/server";
+import {
+  EMAIL_PASSWORD_AUTH_ENABLED,
+  passwordAuthDisabledState,
+} from "@/lib/auth/policy";
 
 export type AccountState = {
   status: "idle" | "error" | "success";
@@ -311,6 +315,7 @@ export async function changePassword(
   _: AccountState,
   formData: FormData,
 ): Promise<AccountState> {
+  if (!EMAIL_PASSWORD_AUTH_ENABLED) return passwordAuthDisabledState;
   const parsed = z
     .object({
       password: z

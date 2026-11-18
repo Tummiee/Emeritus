@@ -45,9 +45,9 @@ export default async function InventoryPage({
                 {label}
                 <input
                   name={String(name)}
-                  readOnly={name === "reserved"}
                   type="number"
                   min="0"
+                  required
                   defaultValue={Number(value)}
                   className="mt-1 h-10 w-full rounded-lg border px-2 text-sm"
                 />

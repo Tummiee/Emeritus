@@ -27,5 +27,6 @@
   "202610160001_commerce_integrity.sql",
   "202610160002_operations.sql",
   "202610160003_catalog_reporting.sql",
-  "202610160004_checkout_quote_reuse.sql"
+  "202610160004_checkout_quote_reuse.sql",
+  "202610160005_inventory_reserved.sql"
 ]

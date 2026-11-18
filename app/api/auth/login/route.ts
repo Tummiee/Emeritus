@@ -2,8 +2,18 @@ import { httpError, readJson, rateLimit } from "@/lib/http";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import {
+  EMAIL_PASSWORD_AUTH_ENABLED,
+  PASSWORD_AUTH_DISABLED_MESSAGE,
+} from "@/lib/auth/policy";
 
 export async function POST(request: Request) {
+  if (!EMAIL_PASSWORD_AUTH_ENABLED) {
+    return NextResponse.json(
+      { code: "password-auth-disabled", error: PASSWORD_AUTH_DISABLED_MESSAGE },
+      { status: 403 },
+    );
+  }
   try {
     await rateLimit(request, "login", 10);
     const parsed = z

@@ -1,6 +1,55 @@
 import { expect, it } from "vitest";
 import { readFileSync, readdirSync } from "node:fs";
 import { testDatabase } from "./database-test-setup";
+it("allows only admins to edit reserved inventory and enforces stock limits", async () => {
+  const db = await testDatabase();
+  const user = "00000000-0000-4000-8000-000000000001";
+  const product = "00000000-0000-4000-8000-000000000010";
+  const update = (quantity: number, reserved: number) =>
+    db.query("select public.admin_update_inventory($1,$2,2,$3)", [
+      product,
+      quantity,
+      reserved,
+    ]);
+  try {
+    await db.exec(`
+      insert into auth.users(id,email) values('${user}','inventory@example.test');
+      select set_config('request.jwt.claim.sub','${user}',false);
+      insert into public.products(id,name,slug,sku,price)
+        values('${product}','Phone','inventory-phone','INVENTORY-PHONE',1000);
+      set role authenticated;
+    `);
+    await expect(update(10, 3)).rejects.toThrow("admin required");
+    await db.exec(
+      `reset role; update public.profiles set role='admin' where id='${user}'; set role authenticated;`,
+    );
+    await update(10, 3);
+    // Older callers may still omit reserved; preserve the saved value.
+    await db.query("select public.admin_update_inventory($1,12,2)", [product]);
+    expect(
+      (
+        await db.query(
+          "select quantity,reserved from public.inventory where product_id=$1",
+          [product],
+        )
+      ).rows,
+    ).toEqual([{ quantity: 12, reserved: 3 }]);
+    await expect(update(10, -1)).rejects.toThrow();
+    await expect(update(10, 11)).rejects.toThrow();
+    await update(10, 0);
+    expect(
+      (
+        await db.query(
+          "select reserved from public.inventory where product_id=$1",
+          [product],
+        )
+      ).rows,
+    ).toEqual([{ reserved: 0 }]);
+  } finally {
+    await db.close();
+  }
+}, 60000);
+
 it("the migration manifest excludes manual maintenance and contains every migration", () => {
   const files: string[] = JSON.parse(
     readFileSync("supabase/migration-manifest.json", "utf8"),

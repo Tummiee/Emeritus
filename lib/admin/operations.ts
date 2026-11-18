@@ -50,11 +50,17 @@ export async function updateInventory(formData: FormData) {
     .object({
       productId: z.string().uuid(),
       quantity: z.coerce.number().int().min(0),
+      reserved: z.string().min(1).pipe(z.coerce.number<string>().int().min(0)),
       threshold: z.coerce.number().int().min(0),
+    })
+    .refine((value) => value.reserved <= value.quantity, {
+      path: ["reserved"],
+      message: "Reserved stock cannot exceed quantity.",
     })
     .safeParse({
       productId: formData.get("productId"),
       quantity: formData.get("quantity"),
+      reserved: formData.get("reserved"),
       threshold: formData.get("threshold"),
     });
   if (!parsed.success) redirect("/admin/inventory?error=invalid");
@@ -62,6 +68,7 @@ export async function updateInventory(formData: FormData) {
   const { error } = await supabase.rpc("admin_update_inventory", {
     p_product_id: parsed.data.productId,
     p_quantity: parsed.data.quantity,
+    p_reserved: parsed.data.reserved,
     p_threshold: parsed.data.threshold,
   });
   if (error) redirect("/admin/inventory?error=save-failed");

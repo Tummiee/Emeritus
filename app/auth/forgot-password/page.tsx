@@ -1,16 +1,20 @@
-import Header from "@/components/Header"
-import Footer from "@/components/Footer"
-import { AuthForm } from "@/components/auth/AuthForm"
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
+import { AuthForm } from "@/components/auth/AuthForm";
+import { EMAIL_PASSWORD_AUTH_ENABLED } from "@/lib/auth/policy";
+import { redirectLegacyAuth } from "@/lib/auth/legacy";
 
 export default async function ForgotPasswordPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>
+  searchParams: Promise<{ error?: string; next?: string }>;
 }) {
-  const params = await searchParams
-  const notice = params.error === "recovery-link"
-    ? "That password-reset link is invalid or has expired. Request a new one."
-    : undefined
+  const params = await searchParams;
+  if (!EMAIL_PASSWORD_AUTH_ENABLED) redirectLegacyAuth(params.next);
+  const notice =
+    params.error === "recovery-link"
+      ? "That password-reset link is invalid or has expired. Request a new one."
+      : undefined;
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
@@ -19,5 +23,5 @@ export default async function ForgotPasswordPage({
       </main>
       <Footer />
     </div>
-  )
+  );
 }
