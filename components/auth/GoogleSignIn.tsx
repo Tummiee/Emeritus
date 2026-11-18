@@ -40,11 +40,11 @@ export function GoogleSignIn({
       </p>
       <h1
         id="google-sign-in-title"
-        className="text-3xl font-bold tracking-tight"
+        className="text-3xl font-bold text-center tracking-tight"
       >
         Sign in to your account
       </h1>
-      <p className="mt-3 text-sm leading-6 text-muted-foreground">
+      <p className="mt-3 text-sm leading-6 text-muted-foreground text-center">
         Continue with Google to access your orders, favourites, and repairs.
       </p>
       {notice && !error && (
