@@ -35,7 +35,7 @@ export function GoogleSignIn({
       className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-lg sm:p-8"
       aria-labelledby="google-sign-in-title"
     >
-      <p className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-primary">
+      <p className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-primary text-center">
         Customer account
       </p>
       <h1
