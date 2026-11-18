@@ -1,0 +1,203 @@
+import { NextRequest, NextResponse } from "next/server";
+import {
+  reviewErrorMessage,
+  reviewSubmissionSchema,
+} from "@/lib/reviews/validation";
+import { createClient } from "@/lib/supabase/server";
+
+type ReviewEligibilityReason =
+  "eligible" | "sign-in" | "not-purchased" | "pending" | "already-reviewed";
+
+async function eligibility(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  productId: string,
+  userId: string,
+): Promise<{ canReview: boolean; reason: ReviewEligibilityReason }> {
+  const { data: existing, error: existingError } = await supabase
+    .from("product_reviews")
+    .select("status")
+    .eq("product_id", productId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (existingError) throw existingError;
+  if (existing) {
+    return {
+      canReview: false,
+      reason: existing.status === "pending" ? "pending" : "already-reviewed",
+    };
+  }
+
+  const { data: purchased, error: purchaseError } = await supabase.rpc(
+    "has_delivered_product",
+    { p_product_id: productId },
+  );
+  if (purchaseError) throw purchaseError;
+  return purchased
+    ? { canReview: true, reason: "eligible" }
+    : { canReview: false, reason: "not-purchased" };
+}
+
+export async function GET(request: NextRequest) {
+  const supabase = await createClient();
+  const productId = request.nextUrl.searchParams.get("productId");
+  if (request.nextUrl.searchParams.get("eligibility") === "true") {
+    const parsedProductId =
+      reviewSubmissionSchema.shape.productId.safeParse(productId);
+    if (!parsedProductId.success) {
+      return NextResponse.json({ error: "Invalid product" }, { status: 400 });
+    }
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({
+        data: {
+          canReview: false,
+          reason: "sign-in" satisfies ReviewEligibilityReason,
+        },
+      });
+    }
+    try {
+      return NextResponse.json({
+        data: await eligibility(supabase, parsedProductId.data, user.id),
+      });
+    } catch (error) {
+      console.error("Review eligibility check failed", error);
+      return NextResponse.json(
+        { error: "Review eligibility could not be checked." },
+        { status: 500 },
+      );
+    }
+  }
+
+  let query = supabase
+    .from("storefront_reviews")
+    .select("*", { count: "exact" })
+    .order("created_at", { ascending: false })
+    .order("id");
+  if (productId) query = query.eq("product_id", productId);
+  const page = Math.max(
+    1,
+    Math.min(100000, Number(request.nextUrl.searchParams.get("page")) || 1),
+  );
+  const { data, error, count } = await query.range(
+    (page - 1) * 25,
+    page * 25 - 1,
+  );
+  if (error)
+    return NextResponse.json({ error: "Reviews unavailable" }, { status: 503 });
+  return NextResponse.json({
+    success: true,
+    data: (data ?? []).map((row) => ({
+      id: row.id,
+      productId: row.product_id,
+      rating: row.rating,
+      title: row.title,
+      content: row.body,
+      date: row.created_at,
+      author: row.author,
+      verified: row.verified_purchase,
+    })),
+    count,
+    page,
+    pageSize: 25,
+  });
+}
+
+export async function POST(request: NextRequest) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user)
+    return NextResponse.json(
+      { error: "Sign in to review a product" },
+      { status: 401 },
+    );
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json(
+      { error: "Invalid review request" },
+      { status: 400 },
+    );
+  }
+  const parsed = reviewSubmissionSchema.safeParse(body);
+  if (!parsed.success)
+    return NextResponse.json(
+      { error: reviewErrorMessage(parsed.error) },
+      { status: 400 },
+    );
+
+  const { data: product } = await supabase
+    .from("products")
+    .select("id")
+    .eq("id", parsed.data.productId)
+    .eq("active", true)
+    .maybeSingle();
+  if (!product)
+    return NextResponse.json({ error: "Product not found" }, { status: 404 });
+
+  let reviewEligibility;
+  try {
+    reviewEligibility = await eligibility(
+      supabase,
+      parsed.data.productId,
+      user.id,
+    );
+  } catch (error) {
+    console.error("Review eligibility check failed", error);
+    return NextResponse.json(
+      { error: "Review eligibility could not be checked. Please try again." },
+      { status: 500 },
+    );
+  }
+  if (!reviewEligibility.canReview) {
+    const message =
+      reviewEligibility.reason === "pending"
+        ? "Your review is awaiting approval"
+        : reviewEligibility.reason === "already-reviewed"
+          ? "You have already reviewed this product"
+          : "Only customers who have received this product can review it";
+    return NextResponse.json(
+      { error: message },
+      { status: reviewEligibility.reason === "not-purchased" ? 403 : 409 },
+    );
+  }
+
+  const { data, error } = await supabase
+    .from("product_reviews")
+    .insert({
+      product_id: parsed.data.productId,
+      user_id: user.id,
+      rating: parsed.data.rating,
+      title: parsed.data.title,
+      body: parsed.data.content,
+      status: "pending",
+      verified_purchase: true,
+    })
+    .select()
+    .single();
+  if (error?.code === "23505")
+    return NextResponse.json(
+      { error: "You have already reviewed this product" },
+      { status: 409 },
+    );
+  if (error) {
+    console.error("Review submission failed", error);
+    const configurationError = error.code === "42501" || error.code === "42883";
+    return NextResponse.json(
+      {
+        error: configurationError
+          ? "Verified reviews are not configured yet."
+          : "Could not submit your review",
+      },
+      { status: configurationError ? 503 : 400 },
+    );
+  }
+  return NextResponse.json(
+    { success: true, data, message: "Review submitted for moderation" },
+    { status: 201 },
+  );
+}

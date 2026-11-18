@@ -1,0 +1,1 @@
+Browser tests use only the HTTP fixture started by `scripts/e2e-server.mjs`. Its product, database key, and public URL are deliberately fake. It runs on ports 3100 and 54325 with an isolated Next output directory. Do not point it at a live Supabase project or copy fixture credentials into production.
